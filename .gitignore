@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Colab / notebooks
+.ipynb_checkpoints/
+
+# Local secrets
+.env
+*.secret
+
+# Phoenix data — NEVER commit
+*.db
+*.db-shm
+*.db-wal
+*.pkl
+*.pickle
+*.joblib
+*.parquet
+*.csv
+*.jsonl
+
+# ATG raw/archive material
+ATG_ARCHIVE/
+ATG_*.json
+ATG_*.txt
+ATG_*.pdf
+
+# Local runtime
+logs/
+outputs/
