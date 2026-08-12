@@ -1,6 +1,8 @@
-"""Phoenix Trav core package.
+"""Phoenix Trav core package."""
 
-Architecture foundation only. No live data access or database writes.
-"""
+__version__ = "0.2.0"
 
-__version__ = "0.1.0"
+from .performance import PhoenixPerformance
+from .results import PhoenixResultImporter
+
+__all__ = ["PhoenixPerformance", "PhoenixResultImporter"]
