@@ -1,0 +1,33 @@
+{
+  "project": "Phoenix 15",
+  "date": "2026-08-12",
+  "track": "Örebro",
+  "game": "V86",
+  "status": "VERIFIED",
+  "benchmark": {
+    "top1": {"hits": 2, "races": 8, "percent": 25.0},
+    "top3": {"hits": 4, "races": 8, "percent": 50.0},
+    "top5": {"hits": 6, "races": 8, "percent": 75.0},
+    "top7": {"hits": 8, "races": 8, "percent": 100.0},
+    "system": {"hits": 3, "races": 8, "percent": 37.5}
+  },
+  "system_misses_where_winner_in_top7": [
+    {"v86_leg": 3, "winner": 6, "phoenix_rank": 5, "system": [2, 5]},
+    {"v86_leg": 4, "winner": 2, "phoenix_rank": 6, "system": [4, 7, 3]},
+    {"v86_leg": 5, "winner": 4, "phoenix_rank": 6, "system": [5, 1, 10, 2, 12]},
+    {"v86_leg": 7, "winner": 4, "phoenix_rank": 3, "system": [5, 7, 12]},
+    {"v86_leg": 8, "winner": 15, "phoenix_rank": 5, "system": [8, 14, 1, 6]}
+  ],
+  "facit": {
+    "1": 4,
+    "2": 3,
+    "3": 6,
+    "4": 2,
+    "5": 4,
+    "6": 12,
+    "7": 4,
+    "8": 15
+  },
+  "source": "Google Drive: /content/drive/MyDrive/PhoenixTrav/phoenix_15_live/v86_2026-08-12_system_miss_analysis.json",
+  "note": "Benchmark saved from verified Phoenix 15 V86 result analysis. No Phoenix prediction data was modified."
+}
