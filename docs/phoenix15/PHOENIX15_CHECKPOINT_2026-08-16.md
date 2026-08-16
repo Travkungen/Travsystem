@@ -1,14 +1,14 @@
 # Phoenix 15 — Checkpoint 2026-08-16
 
 ## Status
-Paused after READ ONLY diagnostics of the 2026-08-08 Östersund V86 result set.
+Paused after READ ONLY diagnostics. **Important: the 8-race result set previously analysed in this checkpoint is the 2026-08-15 Åby card, not the current 2026-08-16 date.** The earlier wording incorrectly called it today's result. Treat that wording as corrected.
 
 **No database changes. No Phoenix model changes. No Feature Engine changes.**
 
 Database used in Colab:
 `/content/drive/MyDrive/PhoenixTrav/phoenix_trav.db`
 
-## Verified result/prediction coverage
+## Verified result/prediction coverage for the analysed card
 - Phoenix 15 predictions: 98
 - Phoenix 15 results: 98
 - Matched starters: 98
@@ -18,7 +18,7 @@ Database used in Colab:
 - Starters without Phoenix score: 7
 - No actual winner is missing a Phoenix score
 
-## Phoenix performance on the 8 races
+## Phoenix performance on the analysed 8 races
 - Top 1: 2/8 = 25.0%
 - Top 3: 5/8 = 62.5%
 - Top 5: 6/8 = 75.0%
