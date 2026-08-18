@@ -118,3 +118,73 @@ This checkpoint records the important leakage-clean reconstruction and out-of-sa
 - Then summarize Top 1 / Top 3 / Top 5 / Top 7 and use that as a real-world checkpoint.
 - Future improvements should be evaluated on a new unseen holdout, never by tuning against already-used holdout results.
 - Long-term objective: improve Phoenix Intelligence toward **100/100** without leakage, overfitting, or post-hoc optimization.
+
+## PHOENIX 15 — PLAN 2026-08-19 — V85 SOLVALLA + UTVECKLING
+
+Solvalla's calendar confirms **V85/STL-finaler on 19 August 2026**, including Jubileumsdagen and Margareta Wallenius-Klebergs Pokal. This is the next major live test. 
+
+### A. V85 LIVE — FIRST PRIORITY
+1. Load tomorrow's verified V85 startlist into the persistent Phoenix environment.
+2. Validate race count, start numbers, horse IDs and race IDs before scoring.
+3. Run **Clean Phoenix 1.1 unchanged** as the baseline.
+4. Produce Top 7 for every V85 leg, plus score gap between ranks 1-7 and the first outside Top 7.
+5. Do not train or optimize before the live prediction is frozen.
+6. Save the prediction snapshot before any results are known.
+
+### B. SMART DEVELOPMENT — SECOND PRIORITY
+Use the V85 as a controlled experiment, not as an excuse to tune against the result.
+
+Test improvements separately and only against a NEW unseen validation period:
+- better weighting of historical form versus total career statistics;
+- start-position effect by start method;
+- driver/trainer and horse-driver history, but only when strictly time-causal;
+- distance/start-method effects;
+- stability by race type, field size and track;
+- ranking stability and score-gap calibration;
+- value/spike layer on top of the frozen Clean Phoenix ranking.
+
+### C. NO-LEAKAGE RULE
+Every new feature must pass:
+- feature timestamp < current race;
+- no current placement/winner information;
+- no future race information;
+- no post-race statistics accidentally merged into a pre-race row;
+- no duplicate feature columns from old AI tables;
+- READ ONLY during validation/product generation.
+
+### D. EVALUATION AFTER V85
+Import the official results only after the V85 is complete. Then calculate:
+- Top 1 / Top 3 / Top 5 / Top 7 per leg;
+- average rank of winner;
+- number of legs with winner in Top 7;
+- number of legs with winner at rank 1;
+- score gap around the winner;
+- performance by race type.
+
+Then compare the V85 result against:
+1. Clean Phoenix 1.1 frozen baseline;
+2. any new candidate improvement;
+3. previous holdout benchmark.
+
+### E. ROAD TO PHOENIX 100/100
+The target is not to make the number look better. The target is a more intelligent, more stable and more generalizable ranking.
+
+Progression:
+**78/100 frozen baseline → new evidence → controlled improvement → new unseen holdout → repeat.**
+
+No change becomes the new Phoenix baseline until it beats the frozen baseline on unseen data and passes leakage checks.
+
+### F. EFFICIENCY RULE
+Tomorrow's work should use a few short Colab cells and reusable modules. No 20-minute blind-running cells and no giant copied notebook blocks. Every cell should have a clear purpose and print a compact result.
+
+### G. END-OF-DAY CHECKPOINT
+Before ending tomorrow, save:
+- V85 prediction snapshot;
+- V85 official results;
+- Top 1/3/5/7 evaluation;
+- leakage audit status;
+- comparison versus frozen Clean Phoenix 1.1;
+- any improvement experiment and whether it passed/fails;
+- next Phoenix Intelligence score only if justified by evidence.
+
+**Frozen rule:** tomorrow's V85 is first a real-world test of the current Phoenix. Development comes after the prediction is locked, and improvements are accepted only through clean unseen validation.
