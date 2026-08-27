@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-27  
 **Task:** Phoenix 15 Point 9 — System Selection / Protection Layer v1  
-**Status:** ✅ PHASE 1 COMPLETE  
+**Status:** ⚠️ DIAGNOSTIC COMPLETE — HISTORICAL BACKTEST PENDING  
 **Branch:** `travkungen-issue-13-point-9-next-task`  
 **Commit:** 756df7b
 
@@ -174,7 +174,7 @@ evaluation = protection.evaluate_on_facit(protected_system, winner_start_number)
 ```
 IF Phase 2 shows no degradation:
   -> Integrate into live Phoenix workflow
-  -> Mark Rule 1 as production-ready
+  -> Mark Rule 1 as not production-ready until Phase 2 passes
   -> Rule 2/3 as optional enhancement
   -> Create live integration module
 ELSE IF Phase 2 shows minor degradation (< 5% of rounds):
@@ -235,7 +235,7 @@ ELSE:
 
 2. **Phase 1 is complete** but **Phase 2 (backtest) is required** before production deployment.
 
-3. **Rule 1 (Top 3 protection) is validated.** Rules 2 and 3 are implemented but require market data and spike signal validation.
+3. **Rule 1 (Top 3 protection) is validated in the simulated diagnostic case.** Rules 2 and 3 are implemented but require market data and spike signal validation.
 
 4. **No Phoenix baseline was modified.** This checkpoint is safe to preserve; future work can refine the protection rules without affecting the frozen baseline.
 
@@ -247,7 +247,7 @@ ELSE:
 
 ```
 Commit: 756df7b
-Message: Phoenix 15 Point 9: Protection Layer v1 Phase 1 diagnostic validation complete
+Message: Phoenix 15 Point 9: Protection Layer v1 Phase 1 diagnostic validation completed; historical backtest pending
 Files: 4 changed, 630 insertions(+)
 - PHOENIX15_PROTECTION_LAYER_v1.py (new)
 - test_protection_layer_v86_diagnostic.py (new)
@@ -261,6 +261,6 @@ Files: 4 changed, 630 insertions(+)
 
 **Point 9** has been successfully executed. The System Selection / Protection Layer v1 is designed, implemented, and validated on a critical diagnostic case. The protection mechanism works — it recovered a rank 3 winner that was inappropriately removed by aggressive system reduction.
 
-**Status:** Ready for Phase 2 backtest validation. Next milestone: Historical V86/V85/V86 backtest to confirm no performance degradation.
+**Status:** Ready to begin Phase 2 historical backtest validation. Next milestone: Historical V86/V85/V86 backtest to confirm no performance degradation.
 
 **Principle maintained:** *Phoenix ranks. Reduction selects. Protection preserves high-confidence candidates.*
