@@ -155,14 +155,14 @@ This checkpoint protects high-confidence candidates using both Phoenix ranking a
 ⏳ Historical Backtest (Phase 2) — NEXT STEP  
 ⏳ Integration Decision (Phase 3) — PENDING  
 
-**Current state:** Protection layer demonstrated success on critical case (V86-7, Phoenix rank 3 recovery). Rule 1 (Top 3 protection) is validated. Rules 2-3 may need threshold refinement for rank 4-7 cases.
+**Current state:** Protection layer demonstrated success on critical case (V86-7, Phoenix rank 3 recovery). Rule 1 (Top 3 protection) is validated in the simulated diagnostic case. Rules 2-3 may need threshold refinement for rank 4-7 cases.
 
-**Expected next:** Archive test results, prepare Phase 2 backtest infrastructure, document Rule 1 success as production-ready.
+**Expected next:** Archive test results, prepare Phase 2 backtest infrastructure, document Rule 1 success as not production-ready until Phase 2 passes.
 
 ## Note
 
 This checkpoint locks the Point 9 Phase 1 diagnostic validation. It demonstrates that:
 1. **The protection layer concept works** (V86-7 recovery proves it)
 2. **Rule 1 (Top 3) is sufficient** for the most critical case
-3. **No performance degradation** on other races (not tested breaking hits)
+3. **No performance-degradation claim** on other races (not tested breaking hits)
 4. **System size maintained** in all cases (no system growth)
