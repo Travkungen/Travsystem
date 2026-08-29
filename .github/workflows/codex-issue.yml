@@ -27,16 +27,16 @@ jobs:
         id: run_codex
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: \${{ secrets.OPENAI_API_KEY }}
           permission-profile: ":workspace"
           prompt-file: .github/codex/prompts/issue-worker.md
 
       - name: Create branch and PR
         env:
-          GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          CODEX_MESSAGE: ${{ steps.run_codex.outputs.final-message }}
+          GH_TOKEN: \${{ github.token }}
+          ISSUE_NUMBER: \${{ github.event.issue.number }}
+          ISSUE_TITLE: \${{ github.event.issue.title }}
+          CODEX_MESSAGE: \${{ steps.run_codex.outputs.final-message }}
         run: |
           set -euo pipefail
 
@@ -45,22 +45,19 @@ jobs:
             exit 0
           fi
 
-          BRANCH="codex/issue-${ISSUE_NUMBER}"
-          git switch -c "$BRANCH"
+          BRANCH="codex/issue-\${ISSUE_NUMBER}"
+          git switch -c "\$BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "Codex: issue #${ISSUE_NUMBER}"
-          git push --set-upstream origin "$BRANCH"
+          git commit -m "Codex: issue #\${ISSUE_NUMBER}"
+          git push --set-upstream origin "\$BRANCH"
 
-          PR_URL="$(gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Codex: issue #${ISSUE_NUMBER} — ${ISSUE_TITLE}" \
-            --body "Automated Codex work for issue #${ISSUE_NUMBER}.
+          PR_URL="\$(gh pr create \\
+            --base main \\
+            --head "\$BRANCH" \\
+            --title "Codex: issue #\${ISSUE_NUMBER} — \${ISSUE_TITLE}" \\
+            --body "\$(printf 'Automated Codex work for issue #%s.\\n\\nCodex final report:\\n%s' "\$ISSUE_NUMBER" "\$CODEX_MESSAGE")")"
 
-Codex final report:
-${CODEX_MESSAGE}")"
-
-          gh issue comment "$ISSUE_NUMBER" --body "Codex completed a run and created PR: $PR_URL"
+          gh issue comment "\$ISSUE_NUMBER" --body "Codex completed a run and created PR: \$PR_URL"
