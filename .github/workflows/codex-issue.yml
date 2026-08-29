@@ -58,12 +58,9 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "Codex: issue #${ISSUE_NUMBER} — ${ISSUE_TITLE}" \
-            --body "$(cat <<EOF
-Automated Codex work for issue #${ISSUE_NUMBER}.
+            --body "Automated Codex work for issue #${ISSUE_NUMBER}.
 
 Codex final report:
-${CODEX_MESSAGE}
-EOF
-)" )"
+${CODEX_MESSAGE}")"
 
           gh issue comment "$ISSUE_NUMBER" --body "Codex completed a run and created PR: $PR_URL"
