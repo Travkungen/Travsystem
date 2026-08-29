@@ -1,4 +1,4 @@
-"""Mechanical tests for Phase 2 harness; synthetic only, never historical claims."""
+""""Mechanical tests for Phase 2 harness; synthetic only, never historical claims."""
 import pandas as pd
 from PHOENIX15_PROTECTION_LAYER_v1 import PhoenixProtectionLayerV1
 
@@ -10,10 +10,10 @@ def make_system(nums):
 
 def test_rule1_preserves_size_and_recovers_top3():
     p=PhoenixProtectionLayerV1()
-    top=make_ranked(); system=make_system([5,7])
+    top=make_ranked(); system=make_system([5,6,7])
     out,d=p.protect_system(top,system)
-    assert int(out.in_system.sum())==2
-    assert 3 in set(out.loc[out.in_system.eq(1),"start_number"])
+    assert int(out.in_system.sum())==3
+    assert {1,2,3} <= set(out.loc[out.in_system.eq(1),"start_number"])
     assert d["protection_summary"]["system_size_maintained"]
 
 def test_rule2_uses_market_rank():
