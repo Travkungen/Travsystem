@@ -2,7 +2,8 @@ name: Codex issue worker
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   codex:
-    if: github.event.label.name == 'codex:run'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'codex:run'
     runs-on: ubuntu-latest
 
     steps:
