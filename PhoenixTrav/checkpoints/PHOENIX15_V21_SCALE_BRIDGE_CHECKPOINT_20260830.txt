@@ -1,0 +1,52 @@
+PHOENIX 15 — CHECKPOINT 2026-08-30
+
+AUTOMATION ORCHESTRATOR V2 — VERIFIED
+
+MODEL:
+phoenix15_baseline_v2_1.pkl
+HistGradientBoostingClassifier
+20 model features
+
+VERIFIED RUN:
+Discovery: 8 races
+Startlist: 89
+History: 89
+Features: 89
+Scored: 89
+Ranked: 89
+Top5: 40
+
+PROBLEM SOLVED:
+V2.1 was trained with percentage features on 0–100 scale.
+Live Feature Engine supplied 0–1.
+
+V2.1 SCALE BRIDGE:
+win_percent
+top3_percent
+last5_win_percent
+driver_win_percent
+driver_top3_percent
+trainer_win_percent
+trainer_top3_percent
+hd_win_percent
+
+Runtime conversion: multiply these features by 100 before prediction.
+
+AFTER BRIDGE:
+Probability min: 6.529738379888876e-05
+Probability max: 0.8457711826267325
+Unique probabilities: 86
+Top5: 40
+
+INTEGRATED:
+race_automation/phoenix15_automation_orchestrator_v2.py
+
+BACKUP:
+race_automation/phoenix15_automation_orchestrator_v2_PRE_V21_SCALE_BRIDGE.py
+
+MASTER: UNCHANGED
+MODEL: UNCHANGED
+SQLITE WRITE: NONE
+
+NEXT:
+Run today's V85 through the working orchestrator and obtain Phoenix ranking/Top5.
