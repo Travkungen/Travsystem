@@ -39,7 +39,6 @@ model_path = MODELS / 'phoenix15_baseline_v2_1.pkl'
 print('MODEL:', model_path)
 print('MODEL OK:', model_path.exists())
 
-# Load modules without requiring them to be installed as a package.
 def load_module(name, path):
     if not path.exists():
         raise FileNotFoundError(path)
@@ -76,7 +75,26 @@ print('FEATURE:', PhoenixFeatureBuild.__name__)
 print('MODEL ENGINE:', PhoenixModelEngine.__name__)
 print('RANKING:', PhoenixRaceRanking.__name__)
 
-# Verified model feature contract.
+# Locked production score/probability/rank engine.
+LOCKED_ENGINE = Path('/content/drive/MyDrive/PhoenixTrav/phoenix_15_live') / 'phoenix15' / 'phoenix15_locked_real_score_rank_v1.py'
+if not LOCKED_ENGINE.exists():
+    # GitHub checkout fallback: set PHOENIX15_REPO before startup if needed.
+    repo_root = Path('/content/Travsystem')
+    candidate = repo_root / 'phoenix15' / 'phoenix15_locked_real_score_rank_v1.py'
+    if candidate.exists():
+        LOCKED_ENGINE = candidate
+
+locked_mod = load_module(
+    'phoenix15_locked_real_score_rank_v1',
+    LOCKED_ENGINE
+)
+build_locked_real_score_rank = locked_mod.build_locked_real_score_rank
+verify_locked_output = locked_mod.verify_locked_output
+PhoenixRealScoreLockError = locked_mod.PhoenixRealScoreLockError
+
+print('LOCKED SCORE ENGINE:', LOCKED_ENGINE)
+print('LOCKED ENGINE: OK')
+
 MODEL_FEATURES = [
     'starts', 'wins', 'win_percent', 'top3', 'top3_percent',
     'last5_starts', 'last5_wins', 'last5_top3', 'last5_win_percent',
@@ -90,6 +108,8 @@ print('MODEL FEATURES:', len(MODEL_FEATURES))
 print('=' * 60)
 print('CHECKPOINT — STARTMILJÖ KLAR')
 print('NÄSTA: RESULTATIMPORT / OMGÅNGSANALYS')
-print('INGEN DB-ÄNDRING')
-print('INGEN MODELLÄNDRING')
+print('LOCK: RAW SCORE -> SOFTMAX PROBABILITY -> PHOENIX RANK')
+print('model_rank / gammal win_probability: FÖRBJUDNA')
+print('FACIT/RESULTAT: FÅR EJ användas för prediction')
+print('MASTER: READ ONLY')
 print('=' * 60)
