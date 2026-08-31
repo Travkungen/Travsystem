@@ -58,13 +58,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${OUTPUT_DIR}"
+          # Always create the default/selected directory so an absent snapshot
+          # bundle is reported as BLOCKED_NO_SNAPSHOTS rather than failing find.
+          mkdir -p "${SNAPSHOT_DIR}"
+
           if [ -n "${SNAPSHOT_URL}" ]; then
             tmp="/tmp/phoenix15_snapshots.zip"
             curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 "${SNAPSHOT_URL}" -o "${tmp}"
             if [ -n "${SNAPSHOT_SHA256}" ]; then
               echo "${SNAPSHOT_SHA256}  ${tmp}" | sha256sum -c -
             fi
-            mkdir -p "${SNAPSHOT_DIR}"
             unzip -q "${tmp}" -d "${SNAPSHOT_DIR}"
           fi
 
