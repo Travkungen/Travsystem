@@ -95,6 +95,19 @@ PhoenixRealScoreLockError = locked_mod.PhoenixRealScoreLockError
 print('LOCKED SCORE ENGINE:', LOCKED_ENGINE)
 print('LOCKED ENGINE: OK')
 
+# PHOENIX 15 — AUTOMATIC ODDS ENGINE
+ODDS_ENGINE = ROOT / 'phoenix15' / 'phoenix15_odds_engine_v1.py'
+if not ODDS_ENGINE.exists():
+    raise FileNotFoundError(f'Odds engine saknas: {ODDS_ENGINE}')
+
+odds_mod = load_module(
+    'phoenix15_odds_engine_v1',
+    ODDS_ENGINE
+)
+PHOENIX15_ODDS_ENGINE = odds_mod
+print('ODDS ENGINE:', ODDS_ENGINE)
+print('ODDS ENGINE: AUTO READY')
+
 MODEL_FEATURES = [
     'starts', 'wins', 'win_percent', 'top3', 'top3_percent',
     'last5_starts', 'last5_wins', 'last5_top3', 'last5_win_percent',
