@@ -1,25 +1,13 @@
-"""Phoenix 15 result engine v1.
-
-Purpose:
-    Fetch the current day's ATG race results through the existing Phoenix
-    loader + extended adapter and archive the complete daily result set.
-
-Rules:
-    - Does not modify Master, Frozen, model, or SQLite.
-    - Uses the existing Phoenix ATG loader/extended adapter.
-    - Archives CSV + JSON with date-based filenames.
-"""
-
+"""Phoenix 15 V64 result engine v1.1."""
 from __future__ import annotations
 
 import json
-import os
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-
 import pandas as pd
 
-VERSION = "1.0"
+VERSION = "1.1"
+GAME = "V64"
 
 
 def _load_module(path: str, name: str):
@@ -31,42 +19,34 @@ def _load_module(path: str, name: str):
     return mod
 
 
-def fetch_results(auto_dir: str):
-    """Fetch all current-day race results via Phoenix's existing ATG chain."""
+def fetch_v64_results(auto_dir: str):
+    """Fetch only the current day's V64 through the existing Phoenix ATG chain."""
     auto = Path(auto_dir)
-
-    loader_mod = _load_module(
-        str(auto / "phoenix15_atg_loader_v1.py"),
-        "phoenix15_result_loader",
-    )
-    adapter_mod = _load_module(
-        str(auto / "phoenix15_atg_extended_adapter_v2.py"),
-        "phoenix15_result_adapter",
-    )
-
+    loader_mod = _load_module(str(auto / "phoenix15_atg_loader_v1.py"), "phoenix15_v64_loader")
+    adapter_mod = _load_module(str(auto / "phoenix15_atg_extended_adapter_v2.py"), "phoenix15_v64_adapter")
     loader = loader_mod.PhoenixATGLoader()
     adapter = adapter_mod.PhoenixATGExtendedAdapter()
     today_data = loader.load_today()
 
     rows = []
-
     for track in today_data.get("tracks", []):
-        track_name = track.get("name", "Okänd bana")
-
         for race in track.get("races", []):
             race_id = race.get("id")
             if not race_id:
                 continue
-
             raw = adapter.fetch_extended(race_id)
-
+            # Only races explicitly identified as V64 are accepted.
+            game_text = " ".join(str(raw.get(k, "")) for k in ("game", "gameName", "pool", "product", "type"))
+            race_text = " ".join(str(race.get(k, "")) for k in ("game", "gameName", "pool", "product", "type"))
+            if "v64" not in (game_text + " " + race_text).lower():
+                continue
             for start in raw.get("starts", []):
                 result = start.get("result") or {}
                 horse = start.get("horse") or {}
-
                 rows.append({
-                    "date": race_id[:10] if len(race_id) >= 10 else None,
-                    "track": track_name,
+                    "date": race_id[:10],
+                    "track": track.get("name", "Okänd bana"),
+                    "game": GAME,
                     "race_id": race_id,
                     "number": start.get("number"),
                     "horse": horse.get("name"),
@@ -77,34 +57,20 @@ def fetch_results(auto_dir: str):
 
     df = pd.DataFrame(rows)
     if df.empty:
-        raise RuntimeError("ATG-resultat gav inga starter")
-
+        raise RuntimeError("Ingen V64 hittades i dagens ATG-data")
     df["winner"] = df["placement"].eq(1)
     return today_data, df
 
 
-def archive_results(df: pd.DataFrame, results_dir: str):
-    """Archive daily results without overwriting an existing file."""
+def archive_v64_results(df: pd.DataFrame, results_dir: str):
     results = Path(results_dir)
     results.mkdir(parents=True, exist_ok=True)
-
     date_str = str(df["date"].dropna().iloc[0])
-    csv_path = results / f"ATG_RESULTAT_{date_str}.csv"
-    json_path = results / f"ATG_RESULTAT_{date_str}.json"
-
+    csv_path = results / f"V64_RESULTAT_{date_str}.csv"
+    json_path = results / f"V64_RESULTAT_{date_str}.json"
     if csv_path.exists() or json_path.exists():
-        raise FileExistsError(
-            f"Resultatarkiv finns redan för {date_str}; ingen fil skrivs över."
-        )
-
+        raise FileExistsError(f"V64-resultat finns redan för {date_str}; inget skrivs över.")
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
     with json_path.open("w", encoding="utf-8") as f:
-        json.dump(
-            df.to_dict("records"),
-            f,
-            ensure_ascii=False,
-            indent=2,
-            default=str,
-        )
-
+        json.dump(df.to_dict("records"), f, ensure_ascii=False, indent=2, default=str)
     return csv_path, json_path
