@@ -10,10 +10,6 @@ import pandas as pd
 VERSION = "1.0"
 
 
-def _safe_name(value) -> str:
-    return str(value).replace("/", "-").replace(" ", "_")
-
-
 def render(result: dict, out_dir: str | Path) -> dict[str, str]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -22,16 +18,12 @@ def render(result: dict, out_dir: str | Path) -> dict[str, str]:
     spikes = result["spikes"].copy()
     skrall = result["skrall"].copy()
     budget = result["budget"]
-
     files = {}
 
-    # 1. TOP7 — one clean figure
-    if "horse_name" in top7.columns:
-        labels = top7["horse_name"].astype(str)
-    else:
-        labels = top7["horse_id"].astype(str)
+    # 1. TOP7
+    label_col = "horse_name" if "horse_name" in top7.columns else "horse_id"
     top7_plot = top7.copy()
-    top7_plot["label"] = labels
+    top7_plot["label"] = top7_plot[label_col].astype(str)
     top7_plot = top7_plot.sort_values("score_6040", ascending=True).tail(20)
 
     fig = plt.figure(figsize=(11, 7))
@@ -45,13 +37,11 @@ def render(result: dict, out_dir: str | Path) -> dict[str, str]:
     plt.close(fig)
     files["top7"] = str(path)
 
-    # 2. SPIK — separate figure
+    # 2. SPIK
     if not spikes.empty:
         sp = spikes.copy()
-        sp["label"] = (
-            sp.get("horse_name", sp.get("horse_id", "" )).astype(str)
-            + " — " + sp["spikzon"].astype(str)
-        )
+        label_col = "horse_name" if "horse_name" in sp.columns else "horse_id"
+        sp["label"] = sp[label_col].astype(str) + " — " + sp["spikzon"].astype(str)
         sp = sp.sort_values("marginal", ascending=True)
         fig = plt.figure(figsize=(10, 6))
         plt.barh(sp["label"], sp["marginal"] * 100)
@@ -64,7 +54,7 @@ def render(result: dict, out_dir: str | Path) -> dict[str, str]:
         plt.close(fig)
         files["spikes"] = str(path)
 
-    # 3. SKRÄLL — separate figure
+    # 3. SKRÄLL
     if not skrall.empty:
         counts = skrall["skrall_grade"].value_counts().sort_index()
         fig = plt.figure(figsize=(8, 5))
@@ -78,7 +68,7 @@ def render(result: dict, out_dir: str | Path) -> dict[str, str]:
         plt.close(fig)
         files["skrall"] = str(path)
 
-    # 4. Lightweight HTML report
+    # 4. HTML
     def table_html(df: pd.DataFrame, cols: list[str], n: int = 100) -> str:
         cols = [c for c in cols if c in df.columns]
         return df[cols].head(n).to_html(index=False, classes="data", border=0)
