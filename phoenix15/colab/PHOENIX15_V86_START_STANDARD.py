@@ -284,6 +284,7 @@ if not {"race_id", "horse_id"}.issubset(ranked_v86.columns):
 
 phoenix_history_rank = ranked_v86[["race_id", "horse_id"]].copy()
 phoenix_history_rank["race_id"] = phoenix_history_rank["race_id"].astype(str)
+phoenix_history_rank["horse_id"] = phoenix_history_rank["horse_id"].astype(str)
 phoenix_history_rank["phoenix_rank"] = pd.to_numeric(
     ranked_v86[phoenix_rank_col], errors="coerce"
 )
@@ -293,6 +294,7 @@ if phoenix_history_rank.duplicated(["race_id", "horse_id"]).any():
 
 rescue_input = history_v86.copy()
 rescue_input["race_id"] = rescue_input["race_id"].astype(str)
+rescue_input["horse_id"] = rescue_input["horse_id"].astype(str)
 rescue_input = rescue_input.merge(
     phoenix_history_rank,
     on=["race_id", "horse_id"],
@@ -304,8 +306,11 @@ if rescue_input["phoenix_rank"].isna().any():
     raise RuntimeError("Historical Rescue kunde inte matcha alla historikrader mot Phoenix-rank.")
 
 historical_rescue = rescue_ns["PhoenixHistoricalRescueV1"]().build(rescue_input)
+ranked_rescue_keys = ranked_v86[["race_id", "horse_id", "start_number", "race_number", "market_rank", "odds"]].copy()
+ranked_rescue_keys["race_id"] = ranked_rescue_keys["race_id"].astype(str)
+ranked_rescue_keys["horse_id"] = ranked_rescue_keys["horse_id"].astype(str)
 historical_rescue = historical_rescue.merge(
-    ranked_v86[["race_id", "horse_id", "start_number", "race_number", "market_rank", "odds"]],
+    ranked_rescue_keys,
     on=["race_id", "horse_id"],
     how="left",
     validate="one_to_one",
