@@ -22,7 +22,7 @@ AUTO = ROOT / "race_automation"
 DB = ROOT / "recovery_checkpoints/PHOENIX15_COLAB_TRANSITION_20260810_211119/database/phoenix_trav.db"
 MODEL = ROOT / "models/phoenix15_baseline_v2_1.pkl"
 
-TARGET_DATE = "2026-09-02"   # <-- ändra endast detta datum
+TARGET_DATE = "2026-10-14"   # <-- datum för livekörningen; ändra endast detta datum
 
 for p in [AUTO, DB, MODEL]:
     if not p.exists():
