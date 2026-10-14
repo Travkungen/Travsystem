@@ -5,6 +5,7 @@ import pandas as pd
 
 from phoenix15.phoenix15_live_market_layer_v1 import (
     attach_market,
+    combine_ranks,
     normalize_atg_odds,
     parse_race_market,
     validate_market,
@@ -57,6 +58,25 @@ class MarketLayerTests(unittest.TestCase):
         self.assertEqual(result["phoenix_rank"].tolist(), [2, 1])
         self.assertEqual(result["market_rank"].tolist(), [1, 2])
         self.assertTrue(result["market_match"].all())
+
+    def test_combine_ranks_uses_exact_35_65_weights(self):
+        rows = pd.DataFrame([
+            {"race_id": "r1", "start_number": 1, "phoenix_mark": 1, "market_rank": 4},
+            {"race_id": "r1", "start_number": 2, "phoenix_mark": 2, "market_rank": 1},
+            {"race_id": "r1", "start_number": 3, "phoenix_mark": 3, "market_rank": 2},
+            {"race_id": "r1", "start_number": 4, "phoenix_mark": 4, "market_rank": 3},
+        ])
+        result = combine_ranks(rows, phoenix_weight=0.35, market_weight=0.65)
+        horse2 = result.loc[result["start_number"] == 2].iloc[0]
+        self.assertAlmostEqual(horse2["combined_score"], 0.35 * (2 / 3) + 0.65)
+        self.assertEqual(int(horse2["combined_rank"]), 1)
+        self.assertEqual(result.attrs["phoenix_weight"], 0.35)
+        self.assertEqual(result.attrs["market_weight"], 0.65)
+
+    def test_combine_ranks_rejects_weights_not_summing_to_one(self):
+        rows = pd.DataFrame([{"race_id": "r1", "start_number": 1, "phoenix_mark": 1, "market_rank": 1}])
+        with self.assertRaises(ValueError):
+            combine_ranks(rows, phoenix_weight=0.35, market_weight=0.75)
 
     def test_validate_requires_expected_coverage(self):
         market = pd.DataFrame([
