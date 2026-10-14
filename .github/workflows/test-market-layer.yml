@@ -1,0 +1,28 @@
+name: Phoenix 15 market-layer tests
+
+on:
+  pull_request:
+    paths:
+      - "phoenix15/phoenix15_live_market_layer_v1.py"
+      - "phoenix15/test_live_market_layer_v1.py"
+      - ".github/workflows/test-market-layer.yml"
+  push:
+    branches:
+      - "fix/phoenix15-live-market-layer"
+    paths:
+      - "phoenix15/phoenix15_live_market_layer_v1.py"
+      - "phoenix15/test_live_market_layer_v1.py"
+      - ".github/workflows/test-market-layer.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pandas requests
+      - name: Run market-layer unit tests
+        run: python -m unittest phoenix15.test_live_market_layer_v1

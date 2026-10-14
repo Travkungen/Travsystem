@@ -201,6 +201,64 @@ if len(ranked_v86) != len(startlist_v86):
     conn.close()
     raise RuntimeError("Rank har fel antal rader.")
 
+# ------------------------------------------------
+# 10b. Separat ATG-marknadslager (ingen modell-/DB-ändring)
+# ------------------------------------------------
+# Den befintliga verifierade ATG-källan är games/vinnare_{race_id}.
+# Marknadsrankningen hålls separat; ingen viktning antas här.
+import urllib.request
+
+MARKET_LAYER_URL = (
+    "https://raw.githubusercontent.com/Travkungen/Travsystem/main/"
+    "phoenix15/phoenix15_live_market_layer_v1.py"
+)
+market_source = urllib.request.urlopen(MARKET_LAYER_URL, timeout=30).read().decode("utf-8")
+market_ns = {"__name__": "phoenix15_live_market_layer_v1"}
+exec(compile(market_source, MARKET_LAYER_URL, "exec"), market_ns)
+
+market_race_ids = sorted(startlist_v86["race_id"].astype(str).unique().tolist())
+market_df = market_ns["fetch_market"](market_race_ids, timeout=20, pause_seconds=0.15)
+market_check = market_ns["validate_market"](
+    market_df,
+    expected_races=8,
+    expected_starters=len(startlist_v86),
+)
+print("MARKNADSKONTROLL:", market_check)
+
+if market_check["status"] != "OK":
+    conn.close()
+    raise RuntimeError(f"ATG-marknadsdata ej komplett: {market_check['errors']}")
+
+valid_odds_by_race = market_df.groupby("race_id")["odds"].count()
+weak_races = valid_odds_by_race[valid_odds_by_race < 7].to_dict()
+if weak_races:
+    conn.close()
+    raise RuntimeError(f"Färre än 7 giltiga odds i lopp: {weak_races}")
+
+ranked_v86 = market_ns["attach_market"](ranked_v86, market_df)
+if len(ranked_v86) != len(startlist_v86) or ranked_v86["market_rank"].notna().sum() < 56:
+    conn.close()
+    raise RuntimeError("Marknadsdata kunde inte kopplas till minst 7 hästar per V86-lopp.")
+
+# Fastställd viktning: 35 % Phoenix + 65 % ATG-marknad.
+if "phoenix_mark" in ranked_v86.columns:
+    phoenix_rank_col = "phoenix_mark"
+elif "phoenix_rank" in ranked_v86.columns:
+    phoenix_rank_col = "phoenix_rank"
+elif "model_rank" in ranked_v86.columns:
+    phoenix_rank_col = "model_rank"
+else:
+    conn.close()
+    raise RuntimeError("Saknar Phoenix-rank för 35/65-kombinationen.")
+
+ranked_v86 = market_ns["combine_ranks"](
+    ranked_v86,
+    phoenix_weight=0.35,
+    market_weight=0.65,
+    phoenix_rank_col=phoenix_rank_col,
+)
+print("VIKTNING: 35 % Phoenix / 65 % ATG-marknad")
+
 print("RANK:", len(ranked_v86))
 
 # ------------------------------------------------
@@ -246,6 +304,45 @@ for race_id, g in ranked_v86.groupby("race_id", sort=False):
 if len(top7) != 8:
     conn.close()
     raise RuntimeError("Top 7 saknas för något V86-lopp.")
+
+print()
+print("=== ATG MARKNADENS TOP 7 (SEPARAT FRÅN PHOENIX) ===")
+market_top7 = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    g = g.dropna(subset=["market_rank"]).sort_values(
+        ["market_rank", "odds", "start_number"],
+        ascending=[True, True, True]
+    )
+    if len(g) < 7:
+        conn.close()
+        raise RuntimeError(f"Marknads-Top 7 saknas för lopp {race_id}.")
+    race_no = int(g["race_number"].iloc[0])
+    nums = g.head(7)["start_number"].astype(int).tolist()
+    market_top7[race_no] = nums
+    print(f"V86-{race_no}: " + " ".join(map(str, nums)))
+
+print()
+print("=== KOMBINERAD TOP 7 — 35 % PHOENIX / 65 % MARKNAD ===")
+combined_top7 = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    g = g.sort_values(
+        ["combined_rank", "combined_score", "start_number"],
+        ascending=[True, False, True],
+        kind="stable",
+    )
+    race_no = int(g["race_number"].iloc[0])
+    nums = g.head(7)["start_number"].astype(int).tolist()
+    if len(nums) != 7:
+        conn.close()
+        raise RuntimeError(f"Kombinerad Top 7 saknas för lopp {race_id}.")
+    combined_top7[race_no] = nums
+    print(f"V86-{race_no}: " + " ".join(map(str, nums)))
+
+if len(combined_top7) != 8:
+    conn.close()
+    raise RuntimeError("Kombinerad Top 7 saknas för något V86-lopp.")
+
+print("VIKTNING BEKRÄFTAD: 35 % Phoenix + 65 % ATG-marknad.")
 
 print()
 print("INGEN DB-SKRIVNING")
