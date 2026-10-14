@@ -150,3 +150,58 @@ def validate_market(
         "missing_odds": rows - valid_odds,
         "errors": errors,
     }
+
+
+def combine_ranks(
+    ranked_df: pd.DataFrame,
+    phoenix_weight: float = 0.35,
+    market_weight: float = 0.65,
+    phoenix_rank_col: str = "phoenix_mark",
+) -> pd.DataFrame:
+    """Blend within-race Phoenix and market rank strengths using 35/65 weights.
+
+    Rank 1 is best for both inputs. Each rank is converted to a 0..1 strength
+    within its race, where 1 is best and 0 is worst. Missing market ranks are
+    assigned the worst market strength (0), never treated as favorites.
+    The original Phoenix ranking and market rank are preserved.
+    """
+    if not math.isclose(phoenix_weight + market_weight, 1.0, abs_tol=1e-9):
+        raise ValueError("Vikterna måste summera till 1.0")
+    if phoenix_weight < 0 or market_weight < 0:
+        raise ValueError("Vikterna får inte vara negativa")
+    required = ["race_id", phoenix_rank_col, "market_rank"]
+    missing = [c for c in required if c not in ranked_df.columns]
+    if missing:
+        raise ValueError(f"Saknar kolumner för kombinerad ranking: {missing}")
+
+    result = ranked_df.copy()
+    result["phoenix_rank_original"] = pd.to_numeric(result[phoenix_rank_col], errors="coerce")
+    result["market_rank_original"] = pd.to_numeric(result["market_rank"], errors="coerce")
+    if result["phoenix_rank_original"].isna().any():
+        raise ValueError("Phoenix-rank saknas för en eller flera starter")
+
+    group = result.groupby("race_id", sort=False)
+    counts = group["race_id"].transform("size").astype(float)
+    p = result["phoenix_rank_original"]
+    m = result["market_rank_original"]
+    denom = (counts - 1).clip(lower=1)
+    result["phoenix_strength"] = 1.0 - (p - 1.0) / denom
+    market_strength = 1.0 - (m - 1.0) / denom
+    result["market_strength"] = market_strength.fillna(0.0).clip(0.0, 1.0)
+    result["phoenix_strength"] = result["phoenix_strength"].clip(0.0, 1.0)
+    result["combined_score"] = (
+        phoenix_weight * result["phoenix_strength"]
+        + market_weight * result["market_strength"]
+    )
+    result["combined_rank"] = (
+        result.groupby("race_id", sort=False)["combined_score"]
+        .rank(method="first", ascending=False)
+        .astype(int)
+    )
+    result = result.sort_values(
+        ["race_id", "combined_rank", "phoenix_rank_original", "start_number"],
+        kind="stable"
+    ).reset_index(drop=True)
+    result.attrs["phoenix_weight"] = phoenix_weight
+    result.attrs["market_weight"] = market_weight
+    return result
