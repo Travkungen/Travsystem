@@ -201,6 +201,45 @@ if len(ranked_v86) != len(startlist_v86):
     conn.close()
     raise RuntimeError("Rank har fel antal rader.")
 
+# ------------------------------------------------
+# 10b. Separat ATG-marknadslager (ingen modell-/DB-ändring)
+# ------------------------------------------------
+# Den befintliga verifierade ATG-källan är games/vinnare_{race_id}.
+# Marknadsrankningen hålls separat; ingen viktning antas här.
+import urllib.request
+
+MARKET_LAYER_URL = (
+    "https://raw.githubusercontent.com/Travkungen/Travsystem/main/"
+    "phoenix15/phoenix15_live_market_layer_v1.py"
+)
+market_source = urllib.request.urlopen(MARKET_LAYER_URL, timeout=30).read().decode("utf-8")
+market_ns = {"__name__": "phoenix15_live_market_layer_v1"}
+exec(compile(market_source, MARKET_LAYER_URL, "exec"), market_ns)
+
+market_race_ids = sorted(startlist_v86["race_id"].astype(str).unique().tolist())
+market_df = market_ns["fetch_market"](market_race_ids, timeout=20, pause_seconds=0.15)
+market_check = market_ns["validate_market"](
+    market_df,
+    expected_races=8,
+    expected_starters=len(startlist_v86),
+)
+print("MARKNADSKONTROLL:", market_check)
+
+if market_check["status"] != "OK":
+    conn.close()
+    raise RuntimeError(f"ATG-marknadsdata ej komplett: {market_check['errors']}")
+
+valid_odds_by_race = market_df.groupby("race_id")["odds"].count()
+weak_races = valid_odds_by_race[valid_odds_by_race < 7].to_dict()
+if weak_races:
+    conn.close()
+    raise RuntimeError(f"Färre än 7 giltiga odds i lopp: {weak_races}")
+
+ranked_v86 = market_ns["attach_market"](ranked_v86, market_df)
+if len(ranked_v86) != len(startlist_v86) or ranked_v86["market_rank"].notna().sum() < 56:
+    conn.close()
+    raise RuntimeError("Marknadsdata kunde inte kopplas till minst 7 hästar per V86-lopp.")
+
 print("RANK:", len(ranked_v86))
 
 # ------------------------------------------------
