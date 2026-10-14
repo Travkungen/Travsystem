@@ -5,6 +5,7 @@ import pandas as pd
 
 from phoenix15.phoenix15_live_market_layer_v1 import (
     attach_market,
+    add_rescue_value_signals,
     combine_ranks,
     normalize_atg_odds,
     parse_race_market,
@@ -77,6 +78,18 @@ class MarketLayerTests(unittest.TestCase):
         rows = pd.DataFrame([{"race_id": "r1", "start_number": 1, "phoenix_mark": 1, "market_rank": 1}])
         with self.assertRaises(ValueError):
             combine_ranks(rows, phoenix_weight=0.35, market_weight=0.75)
+
+    def test_rescue_value_signals_are_separate_and_do_not_change_ranks(self):
+        rows = pd.DataFrame([
+            {"race_id": "r1", "start_number": 1, "phoenix_rank_original": 9, "market_rank": 2, "combined_rank": 3},
+            {"race_id": "r1", "start_number": 2, "phoenix_rank_original": 2, "market_rank": 9, "combined_rank": 4},
+            {"race_id": "r1", "start_number": 3, "phoenix_rank_original": 1, "market_rank": 1, "combined_rank": 1},
+        ])
+        result = add_rescue_value_signals(rows, top_n=7)
+        self.assertTrue(bool(result.loc[result["start_number"] == 1, "rescue_candidate"].iloc[0]))
+        self.assertTrue(bool(result.loc[result["start_number"] == 2, "value_candidate"].iloc[0]))
+        self.assertFalse(bool(result.loc[result["start_number"] == 3, "rescue_candidate"].iloc[0]))
+        self.assertEqual(result["combined_rank"].tolist(), rows["combined_rank"].tolist())
 
     def test_validate_requires_expected_coverage(self):
         market = pd.DataFrame([
