@@ -323,7 +323,37 @@ historical_rescue["value_longshot_candidate"] = (
     historical_rescue["phoenix_rank"].between(4, 7)
     & historical_rescue["market_rank"].ge(8)
 )
-print("RESCUE: historiska signaler + separata marknadsavvikelser; ändrar inte 35/65.")
+
+# Distance Rescue V1 körs bara när historiska distanskolumner faktiskt finns.
+DISTANCE_RESCUE_URL = (
+    "https://raw.githubusercontent.com/Travkungen/Travsystem/main/"
+    "phoenix15/rescue/phoenix15_distance_rescue_v1.py"
+)
+distance_rescue_status = "SKIPPED: historiska distanskolumner saknas"
+distance_rescue = pd.DataFrame()
+distance_cols = {
+    "distance_exact_starts", "distance_exact_wins", "distance_exact_top3",
+    "distance_near_starts", "distance_near_wins", "distance_near_top3",
+}
+if distance_cols.issubset(history_v86.columns):
+    distance_source = urllib.request.urlopen(DISTANCE_RESCUE_URL, timeout=30).read().decode("utf-8")
+    distance_ns = {"__name__": "phoenix15_distance_rescue_v1"}
+    exec(compile(distance_source, DISTANCE_RESCUE_URL, "exec"), distance_ns)
+    distance_input = historical_rescue.copy()
+    if "race_distance" not in distance_input.columns and "race_distance" in startlist_v86.columns:
+        distances = startlist_v86[["race_id", "horse_id", "race_distance"]].copy()
+        distances["race_id"] = distances["race_id"].astype(str)
+        distances["horse_id"] = distances["horse_id"].astype(str)
+        distance_input["race_id"] = distance_input["race_id"].astype(str)
+        distance_input["horse_id"] = distance_input["horse_id"].astype(str)
+        distance_input = distance_input.merge(
+            distances, on=["race_id", "horse_id"], how="left", validate="one_to_one"
+        )
+    distance_input["phoenix_rank"] = distance_input["phoenix_rank"].astype(int)
+    distance_rescue = distance_ns["PhoenixDistanceRescueV1"]().score(distance_input)
+    distance_rescue_status = "OK"
+print("RESCUE: historiska Rescue V1 + marknadsavvikelser; ändrar inte 35/65.")
+print("DISTANCE RESCUE:", distance_rescue_status)
 
 print("RANK:", len(ranked_v86))
 
@@ -468,6 +498,22 @@ for race_no in sorted(historical_rescue["race_number"].dropna().unique()):
     ].sort_values(["phoenix_rank", "market_rank"])
     nums = g["start_number"].astype(int).tolist()
     print(f"V86-{int(race_no)}: " + (" ".join(map(str, nums)) if nums else "inga"))
+
+print()
+print("=== DISTANCE RESCUE V1 ===")
+if distance_rescue_status == "OK":
+    for race_no in sorted(distance_rescue["race_number"].dropna().unique()):
+        g = distance_rescue[
+            (distance_rescue["race_number"] == race_no)
+            & (distance_rescue["distance_rescue_flag"] != "")
+        ].sort_values(["distance_rescue_score", "phoenix_rank"], ascending=[False, True])
+        entries = [
+            f"{int(row.start_number)} (score {row.distance_rescue_score:.1f}, {row.distance_rescue_flag})"
+            for row in g.itertuples()
+        ]
+        print(f"V86-{int(race_no)}: " + ("; ".join(entries) if entries else "inga"))
+else:
+    print(distance_rescue_status)
 
 print("OBS: Rescue/Value är signaler, inte bekräftade vinstchanser eller automatiska systemval.")
 print()
