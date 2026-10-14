@@ -3,6 +3,8 @@ import unittest
 
 import pandas as pd
 
+from phoenix15.rescue.phoenix15_historical_rescue_v1 import PhoenixHistoricalRescueV1
+
 from phoenix15.phoenix15_live_market_layer_v1 import (
     attach_market,
     add_rescue_value_signals,
@@ -90,6 +92,19 @@ class MarketLayerTests(unittest.TestCase):
         self.assertTrue(bool(result.loc[result["start_number"] == 2, "value_candidate"].iloc[0]))
         self.assertFalse(bool(result.loc[result["start_number"] == 3, "rescue_candidate"].iloc[0]))
         self.assertEqual(result["combined_rank"].tolist(), rows["combined_rank"].tolist())
+
+    def test_historical_rescue_engine_marks_strong_recent_form_without_changing_rank(self):
+        history = pd.DataFrame([{
+            "race_id": "r1", "horse_id": "h1", "phoenix_rank": 8,
+            "starts": 10, "wins": 3, "win_percent": 0.30,
+            "top3": 6, "top3_percent": 0.60,
+            "last5_starts": 5, "last5_wins": 2, "last5_top3": 4,
+            "last5_win_percent": 0.40, "last5_top3_percent": 0.80,
+        }])
+        result = PhoenixHistoricalRescueV1().build(history)
+        self.assertEqual(result.loc[0, "historical_rescue_flag"], "RESCUE")
+        self.assertEqual(result.loc[0, "phoenix_rank"], 8)
+        self.assertGreater(result.loc[0, "historical_rescue_score"], 60)
 
     def test_validate_requires_expected_coverage(self):
         market = pd.DataFrame([
