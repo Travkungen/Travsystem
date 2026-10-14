@@ -15,6 +15,8 @@ on:
     paths:
       - "phoenix15/phoenix15_live_market_layer_v1.py"
       - "phoenix15/test_live_market_layer_v1.py"
+      - "phoenix15/colab/PHOENIX15_V86_START_STANDARD.py"
+      - "phoenix15/rescue/phoenix15_historical_rescue_v1.py"
       - ".github/workflows/test-market-layer.yml"
 
 jobs:
