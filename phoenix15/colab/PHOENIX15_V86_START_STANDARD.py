@@ -43,7 +43,8 @@ print("DB   :", DB)
 # ------------------------------------------------
 # 1. Öppna verifierad historik-DB
 # ------------------------------------------------
-conn = sqlite3.connect(str(DB))
+conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+conn.execute("PRAGMA query_only = ON")
 
 # Kontrollera att DB verkligen är användbar.
 tables = pd.read_sql(
@@ -105,9 +106,23 @@ print("STARTLIST:", len(startlist))
 # ------------------------------------------------
 # 6. Isolera V86 via ATG:s faktiska V86-game
 # ------------------------------------------------
+games_data = today_data.get("games", {})
+
+# ATG kan leverera games som dict med speltyp som nyckel
+# (t.ex. {"V86": [game, ...]) eller som en lista.
+if isinstance(games_data, dict):
+    v86_games = games_data.get("V86", [])
+    if isinstance(v86_games, dict):
+        v86_games = [v86_games]
+else:
+    v86_games = [
+        g for g in games_data
+        if isinstance(g, dict) and str(g.get("id", "")).startswith("V86_")
+    ]
+
 v86_games = [
-    g for g in today_data.get("games", [])
-    if isinstance(g, dict) and g.get("id", "").startswith("V86_")
+    g for g in v86_games
+    if isinstance(g, dict) and str(g.get("id", "")).startswith("V86_")
 ]
 
 if not v86_games:
@@ -205,10 +220,26 @@ print("=== TOP 7 ===")
 
 top7 = {}
 
+# Använd rankingfältet som den aktiva Phoenix 15-rankern faktiskt lämnar.
+if "phoenix_mark" in ranked_v86.columns:
+    ranking_col = "phoenix_mark"
+elif "phoenix_rank" in ranked_v86.columns:
+    ranking_col = "phoenix_rank"
+elif "model_rank" in ranked_v86.columns:
+    ranking_col = "model_rank"
+else:
+    conn.close()
+    raise RuntimeError(
+        "Hittar inget rankingfält (phoenix_mark, phoenix_rank eller model_rank)."
+    )
+
 for race_id, g in ranked_v86.groupby("race_id", sort=False):
-    g = g.sort_values("phoenix_rank")
+    g = g.sort_values(ranking_col, ascending=True)
     race_no = int(g["race_number"].iloc[0])
     nums = g.head(7)["start_number"].astype(int).tolist()
+    if len(nums) != 7:
+        conn.close()
+        raise RuntimeError(f"V86-lopp {race_id} har bara {len(nums)} hästar i Top 7.")
     top7[race_no] = nums
     print(f"V86-{race_no}: " + " ".join(map(str, nums)))
 
