@@ -240,6 +240,25 @@ if len(ranked_v86) != len(startlist_v86) or ranked_v86["market_rank"].notna().su
     conn.close()
     raise RuntimeError("Marknadsdata kunde inte kopplas till minst 7 hästar per V86-lopp.")
 
+# Fastställd viktning: 35 % Phoenix + 65 % ATG-marknad.
+if "phoenix_mark" in ranked_v86.columns:
+    phoenix_rank_col = "phoenix_mark"
+elif "phoenix_rank" in ranked_v86.columns:
+    phoenix_rank_col = "phoenix_rank"
+elif "model_rank" in ranked_v86.columns:
+    phoenix_rank_col = "model_rank"
+else:
+    conn.close()
+    raise RuntimeError("Saknar Phoenix-rank för 35/65-kombinationen.")
+
+ranked_v86 = market_ns["combine_ranks"](
+    ranked_v86,
+    phoenix_weight=0.35,
+    market_weight=0.65,
+    phoenix_rank_col=phoenix_rank_col,
+)
+print("VIKTNING: 35 % Phoenix / 65 % ATG-marknad")
+
 print("RANK:", len(ranked_v86))
 
 # ------------------------------------------------
@@ -302,8 +321,28 @@ for race_id, g in ranked_v86.groupby("race_id", sort=False):
     market_top7[race_no] = nums
     print(f"V86-{race_no}: " + " ".join(map(str, nums)))
 
-print("OBS: Phoenix Top 7 och marknadens Top 7 visas separat.")
-print("Ingen kombinerad viktning aktiveras innan viktfördelningen är verifierad.")
+print()
+print("=== KOMBINERAD TOP 7 — 35 % PHOENIX / 65 % MARKNAD ===")
+combined_top7 = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    g = g.sort_values(
+        ["combined_rank", "combined_score", "start_number"],
+        ascending=[True, False, True],
+        kind="stable",
+    )
+    race_no = int(g["race_number"].iloc[0])
+    nums = g.head(7)["start_number"].astype(int).tolist()
+    if len(nums) != 7:
+        conn.close()
+        raise RuntimeError(f"Kombinerad Top 7 saknas för lopp {race_id}.")
+    combined_top7[race_no] = nums
+    print(f"V86-{race_no}: " + " ".join(map(str, nums)))
+
+if len(combined_top7) != 8:
+    conn.close()
+    raise RuntimeError("Kombinerad Top 7 saknas för något V86-lopp.")
+
+print("VIKTNING BEKRÄFTAD: 35 % Phoenix + 65 % ATG-marknad.")
 
 print()
 print("INGEN DB-SKRIVNING")
