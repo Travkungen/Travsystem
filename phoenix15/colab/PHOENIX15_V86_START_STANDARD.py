@@ -259,6 +259,14 @@ ranked_v86 = market_ns["combine_ranks"](
 )
 print("VIKTNING: 35 % Phoenix / 65 % ATG-marknad")
 
+# Rescue/Value visas som separata signaler; de ändrar inte huvudrankingen.
+ranked_v86 = market_ns["add_rescue_value_signals"](
+    ranked_v86,
+    phoenix_rank_col="phoenix_rank_original",
+    top_n=7,
+)
+print("RESCUE/VALUE: separata kandidatmarkeringar; påverkar inte 35/65-rankingen.")
+
 print("RANK:", len(ranked_v86))
 
 # ------------------------------------------------
@@ -344,6 +352,33 @@ if len(combined_top7) != 8:
 
 print("VIKTNING BEKRÄFTAD: 35 % Phoenix + 65 % ATG-marknad.")
 
+print()
+print("=== RESCUE-KANDIDATER (marknad Top 7, Phoenix utanför Top 7) ===")
+rescue_candidates = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    picked = g[g["rescue_candidate"]].sort_values(
+        ["market_rank", "odds", "start_number"],
+        ascending=[True, True, True],
+    )
+    race_no = int(g["race_number"].iloc[0])
+    nums = picked["start_number"].astype(int).tolist()
+    rescue_candidates[race_no] = nums
+    print(f"V86-{race_no}: " + (" ".join(map(str, nums)) if nums else "inga"))
+
+print()
+print("=== VALUE-KANDIDATER (Phoenix Top 7, marknad utanför Top 7) ===")
+value_candidates = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    picked = g[g["value_candidate"]].sort_values(
+        ["phoenix_rank_original", "start_number"],
+        ascending=[True, True],
+    )
+    race_no = int(g["race_number"].iloc[0])
+    nums = picked["start_number"].astype(int).tolist()
+    value_candidates[race_no] = nums
+    print(f"V86-{race_no}: " + (" ".join(map(str, nums)) if nums else "inga"))
+
+print("OBS: Rescue/Value är avvikelsesignaler, inte bekräftade vinstchanser.")
 print()
 print("INGEN DB-SKRIVNING")
 print("INGEN MODELLÄNDRING")
