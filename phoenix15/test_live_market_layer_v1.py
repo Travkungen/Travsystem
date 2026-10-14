@@ -28,6 +28,8 @@ class Response:
 class MarketLayerTests(unittest.TestCase):
     def test_normalize_atg_odds(self):
         self.assertEqual(normalize_atg_odds(4050), 4.05)
+        self.assertEqual(normalize_atg_odds(952), 0.952)
+        self.assertEqual(normalize_atg_odds(742), 0.742)
         self.assertIsNone(normalize_atg_odds(0))
         self.assertIsNone(normalize_atg_odds(9999))
         self.assertIsNone(normalize_atg_odds("not odds"))

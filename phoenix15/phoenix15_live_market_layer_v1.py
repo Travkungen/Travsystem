@@ -27,8 +27,10 @@ def normalize_atg_odds(raw: Any) -> float | None:
         return None
     if not math.isfinite(value) or value <= 0 or value in (9998, 9999):
         return None
-    odds = value / 1000.0
-    return odds if odds > 1.0 else None
+    # ATG can legitimately return odds below 1.00; ATG rules state that
+    # when the odds are below 1.00, the winning customer receives the stake
+    # back. Do not discard these positive odds: they still carry market rank.
+    return value / 1000.0
 
 
 def parse_race_market(race_id: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
