@@ -4,6 +4,7 @@ import unittest
 import pandas as pd
 
 from phoenix15.rescue.phoenix15_historical_rescue_v1 import PhoenixHistoricalRescueV1
+from phoenix15.rescue.phoenix15_distance_rescue_v1 import PhoenixDistanceRescueV1
 
 from phoenix15.phoenix15_live_market_layer_v1 import (
     attach_market,
@@ -105,6 +106,18 @@ class MarketLayerTests(unittest.TestCase):
         self.assertEqual(result.loc[0, "historical_rescue_flag"], "RESCUE")
         self.assertEqual(result.loc[0, "phoenix_rank"], 8)
         self.assertGreater(result.loc[0, "historical_rescue_score"], 60)
+
+    def test_distance_rescue_requires_and_marks_distance_evidence(self):
+        rows = pd.DataFrame([{
+            "race_id": "r1", "race_number": 1, "start_number": 8,
+            "horse_name": "Test Horse", "phoenix_rank": 8, "race_distance": 2140,
+            "distance_exact_starts": 3, "distance_exact_wins": 1,
+            "distance_exact_top3": 2, "distance_near_starts": 3,
+            "distance_near_wins": 1, "distance_near_top3": 2,
+        }])
+        result = PhoenixDistanceRescueV1().score(rows)
+        self.assertEqual(result.loc[0, "distance_rescue_flag"], "DISTANCE_RESCUE")
+        self.assertEqual(int(result.loc[0, "phoenix_rank"]), 8)
 
     def test_validate_requires_expected_coverage(self):
         market = pd.DataFrame([
