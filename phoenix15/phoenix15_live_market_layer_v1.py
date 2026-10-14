@@ -25,7 +25,7 @@ def normalize_atg_odds(raw: Any) -> float | None:
         value = float(str(raw).replace(",", "."))
     except (TypeError, ValueError):
         return None
-    if not math.isfinite(value) or value <= 0 or value >= 9998000:
+    if not math.isfinite(value) or value <= 0 or value in (9998, 9999):
         return None
     odds = value / 1000.0
     return odds if odds > 1.0 else None
