@@ -411,7 +411,7 @@ if len(combined_top7) != 8:
 print("VIKTNING BEKRÄFTAD: 35 % Phoenix + 65 % ATG-marknad.")
 
 print()
-print("=== RESCUE-KANDIDATER (marknad Top 7, Phoenix utanför Top 7) ===")
+print("=== MARKNADSRESCUE (marknad Top 7, Phoenix utanför Top 7) ===")
 rescue_candidates = {}
 for race_id, g in ranked_v86.groupby("race_id", sort=False):
     picked = g[g["rescue_candidate"]].sort_values(
@@ -424,7 +424,7 @@ for race_id, g in ranked_v86.groupby("race_id", sort=False):
     print(f"V86-{race_no}: " + (" ".join(map(str, nums)) if nums else "inga"))
 
 print()
-print("=== VALUE-KANDIDATER (Phoenix Top 7, marknad utanför Top 7) ===")
+print("=== PHOENIX/MARKNAD-AVVIKELSE (Phoenix Top 7, marknad utanför Top 7) ===")
 value_candidates = {}
 for race_id, g in ranked_v86.groupby("race_id", sort=False):
     picked = g[g["value_candidate"]].sort_values(
