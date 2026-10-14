@@ -265,7 +265,60 @@ ranked_v86 = market_ns["add_rescue_value_signals"](
     phoenix_rank_col="phoenix_rank_original",
     top_n=7,
 )
-print("RESCUE/VALUE: separata kandidatmarkeringar; påverkar inte 35/65-rankingen.")
+
+# Använd även den historiska Rescue-motor som redan finns i repo.
+RESCUE_URL = (
+    "https://raw.githubusercontent.com/Travkungen/Travsystem/main/"
+    "phoenix15/rescue/phoenix15_historical_rescue_v1.py"
+)
+rescue_source = urllib.request.urlopen(RESCUE_URL, timeout=30).read().decode("utf-8")
+rescue_ns = {"__name__": "phoenix15_historical_rescue_v1"}
+exec(compile(rescue_source, RESCUE_URL, "exec"), rescue_ns)
+
+if not {"race_id", "horse_id"}.issubset(history_v86.columns):
+    conn.close()
+    raise RuntimeError("Historical Rescue kräver race_id och horse_id i history_v86.")
+if not {"race_id", "horse_id"}.issubset(ranked_v86.columns):
+    conn.close()
+    raise RuntimeError("Historical Rescue kräver race_id och horse_id i ranked_v86.")
+
+phoenix_history_rank = ranked_v86[["race_id", "horse_id"]].copy()
+phoenix_history_rank["race_id"] = phoenix_history_rank["race_id"].astype(str)
+phoenix_history_rank["phoenix_rank"] = pd.to_numeric(
+    ranked_v86[phoenix_rank_col], errors="coerce"
+)
+if phoenix_history_rank.duplicated(["race_id", "horse_id"]).any():
+    conn.close()
+    raise RuntimeError("Dubbletter i Phoenix rank för Historical Rescue.")
+
+rescue_input = history_v86.copy()
+rescue_input["race_id"] = rescue_input["race_id"].astype(str)
+rescue_input = rescue_input.merge(
+    phoenix_history_rank,
+    on=["race_id", "horse_id"],
+    how="left",
+    validate="one_to_one",
+)
+if rescue_input["phoenix_rank"].isna().any():
+    conn.close()
+    raise RuntimeError("Historical Rescue kunde inte matcha alla historikrader mot Phoenix-rank.")
+
+historical_rescue = rescue_ns["PhoenixHistoricalRescueV1"]().build(rescue_input)
+historical_rescue = historical_rescue.merge(
+    ranked_v86[["race_id", "horse_id", "start_number", "race_number", "market_rank", "odds"]],
+    on=["race_id", "horse_id"],
+    how="left",
+    validate="one_to_one",
+)
+historical_rescue["value_zone_candidate"] = (
+    historical_rescue["phoenix_rank"].between(4, 7)
+    & historical_rescue["market_rank"].between(4, 7)
+)
+historical_rescue["value_longshot_candidate"] = (
+    historical_rescue["phoenix_rank"].between(4, 7)
+    & historical_rescue["market_rank"].ge(8)
+)
+print("RESCUE: historiska signaler + separata marknadsavvikelser; ändrar inte 35/65.")
 
 print("RANK:", len(ranked_v86))
 
@@ -378,7 +431,40 @@ for race_id, g in ranked_v86.groupby("race_id", sort=False):
     value_candidates[race_no] = nums
     print(f"V86-{race_no}: " + (" ".join(map(str, nums)) if nums else "inga"))
 
-print("OBS: Rescue/Value är avvikelsesignaler, inte bekräftade vinstchanser.")
+print()
+print("=== HISTORICAL RESCUE V1 ===")
+for race_no in sorted(historical_rescue["race_number"].dropna().unique()):
+    g = historical_rescue[
+        (historical_rescue["race_number"] == race_no)
+        & (historical_rescue["historical_rescue_flag"].isin(["RESCUE", "WATCH"]))
+    ].sort_values(["historical_rescue_score", "phoenix_rank"], ascending=[False, True])
+    entries = [
+        f"{int(row.start_number)} (P{int(row.phoenix_rank)}, score {row.historical_rescue_score:.1f}, {row.historical_rescue_flag})"
+        for row in g.itertuples()
+    ]
+    print(f"V86-{int(race_no)}: " + ("; ".join(entries) if entries else "inga"))
+
+print()
+print("=== VALUEZON: PHOENIX 4–7 + MARKNADSRANK 4–7 ===")
+for race_no in sorted(historical_rescue["race_number"].dropna().unique()):
+    g = historical_rescue[
+        (historical_rescue["race_number"] == race_no)
+        & historical_rescue["value_zone_candidate"]
+    ].sort_values(["phoenix_rank", "market_rank"])
+    nums = g["start_number"].astype(int).tolist()
+    print(f"V86-{int(race_no)}: " + (" ".join(map(str, nums)) if nums else "inga"))
+
+print()
+print("=== VÄRDE AVVIKELSE: PHOENIX 4–7 + MARKNADSRANK 8+ ===")
+for race_no in sorted(historical_rescue["race_number"].dropna().unique()):
+    g = historical_rescue[
+        (historical_rescue["race_number"] == race_no)
+        & historical_rescue["value_longshot_candidate"]
+    ].sort_values(["phoenix_rank", "market_rank"])
+    nums = g["start_number"].astype(int).tolist()
+    print(f"V86-{int(race_no)}: " + (" ".join(map(str, nums)) if nums else "inga"))
+
+print("OBS: Rescue/Value är signaler, inte bekräftade vinstchanser eller automatiska systemval.")
 print()
 print("INGEN DB-SKRIVNING")
 print("INGEN MODELLÄNDRING")
