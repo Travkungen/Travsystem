@@ -8,6 +8,7 @@ on:
       - ".github/workflows/test-market-layer.yml"
   push:
     branches:
+      - "main"
       - "fix/phoenix15-live-market-layer"
     paths:
       - "phoenix15/phoenix15_live_market_layer_v1.py"
