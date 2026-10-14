@@ -287,6 +287,25 @@ if len(top7) != 8:
     raise RuntimeError("Top 7 saknas för något V86-lopp.")
 
 print()
+print("=== ATG MARKNADENS TOP 7 (SEPARAT FRÅN PHOENIX) ===")
+market_top7 = {}
+for race_id, g in ranked_v86.groupby("race_id", sort=False):
+    g = g.dropna(subset=["market_rank"]).sort_values(
+        ["market_rank", "odds", "start_number"],
+        ascending=[True, True, True]
+    )
+    if len(g) < 7:
+        conn.close()
+        raise RuntimeError(f"Marknads-Top 7 saknas för lopp {race_id}.")
+    race_no = int(g["race_number"].iloc[0])
+    nums = g.head(7)["start_number"].astype(int).tolist()
+    market_top7[race_no] = nums
+    print(f"V86-{race_no}: " + " ".join(map(str, nums)))
+
+print("OBS: Phoenix Top 7 och marknadens Top 7 visas separat.")
+print("Ingen kombinerad viktning aktiveras innan viktfördelningen är verifierad.")
+
+print()
 print("INGEN DB-SKRIVNING")
 print("INGEN MODELLÄNDRING")
 print("=" * 64)
