@@ -3,7 +3,7 @@ import unittest
 
 import pandas as pd
 
-from phoenix15_live_market_layer_v1 import (
+from phoenix15.phoenix15_live_market_layer_v1 import (
     attach_market,
     normalize_atg_odds,
     parse_race_market,
