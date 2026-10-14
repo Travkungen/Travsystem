@@ -205,3 +205,37 @@ def combine_ranks(
     result.attrs["phoenix_weight"] = phoenix_weight
     result.attrs["market_weight"] = market_weight
     return result
+
+
+def add_rescue_value_signals(
+    ranked_df: pd.DataFrame,
+    phoenix_rank_col: str = "phoenix_rank_original",
+    top_n: int = 7,
+) -> pd.DataFrame:
+    """Add transparent, non-ranking-changing divergence flags.
+
+    Rescue candidate: market ranks the horse in its Top N, but Phoenix does not.
+    Value candidate: Phoenix ranks the horse in its Top N, but market does not.
+    These are candidate flags, not a calibrated probability or a replacement for
+    any separately maintained historical Rescue/Value engine.
+    """
+    required = ["race_id", phoenix_rank_col, "market_rank", "combined_rank"]
+    missing = [col for col in required if col not in ranked_df.columns]
+    if missing:
+        raise ValueError(f"Saknar kolumner för Rescue/Value-signaler: {missing}")
+    if top_n < 1:
+        raise ValueError("top_n måste vara minst 1")
+
+    result = ranked_df.copy()
+    phoenix_rank = pd.to_numeric(result[phoenix_rank_col], errors="coerce")
+    market_rank = pd.to_numeric(result["market_rank"], errors="coerce")
+    result["rescue_candidate"] = market_rank.le(top_n) & phoenix_rank.gt(top_n)
+    result["value_candidate"] = phoenix_rank.le(top_n) & market_rank.gt(top_n)
+    result["rescue_value_reason"] = ""
+    result.loc[result["rescue_candidate"], "rescue_value_reason"] = (
+        "MARKNAD_RESCUE: marknad Top N, Phoenix utanför Top N"
+    )
+    result.loc[result["value_candidate"], "rescue_value_reason"] = (
+        "PHOENIX_VALUE: Phoenix Top N, marknad utanför Top N"
+    )
+    return result
