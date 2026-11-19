@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,12 +39,17 @@ def read_odds(path: str | Path) -> list[dict[str, Any]]:
                 odds = float(row["odds"])
             except (TypeError, ValueError):
                 raise ValueError(f"Ogiltigt odds på CSV-rad {row_number}")
-            if odds <= 1:
-                raise ValueError(f"Odds måste vara större än 1 (rad {row_number})")
+            if not math.isfinite(odds) or odds <= 1:
+                raise ValueError(f"Odds måste vara ett ändligt tal större än 1 (rad {row_number})")
             row["odds"] = odds
             row["line"] = (row.get("line") or "").strip()
             for key in REQUIRED - {"odds"}:
                 row[key] = (row.get(key) or "").strip()
+            for key in ("event_id", "sport", "commence_time", "home_team", "away_team",
+                        "bookmaker", "market", "selection", "captured_at"):
+                if not row[key]:
+                    raise ValueError(f"Tomt obligatoriskt fält '{key}' på CSV-rad {row_number}")
+            _timestamp(row["commence_time"])
             _timestamp(row["captured_at"])
             rows.append(row)
     return rows
