@@ -1,0 +1,11 @@
+event_id,sport,league,commence_time,home_team,away_team,bookmaker,market,selection,line,odds,captured_at
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookA,h2h,Home,,2.10,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookA,h2h,Draw,,3.30,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookA,h2h,Away,,3.60,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookB,h2h,Home,,2.05,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookB,h2h,Draw,,3.40,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookB,h2h,Away,,3.70,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookA,totals,Over,2.5,1.90,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookA,totals,Under,2.5,1.95,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookB,totals,Over,2.5,1.93,2026-11-19T16:00:00+01:00
+demo-001,soccer,Example League,2026-11-20T18:00:00+01:00,North FC,South FC,BookB,totals,Under,2.5,1.92,2026-11-19T16:00:00+01:00
