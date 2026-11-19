@@ -41,8 +41,8 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(len(result), 3)
         home = next(r for r in result if r["selection"] == "Home")
         self.assertAlmostEqual(home["best_odds"], 2.1)
-        self.assertTrue(home["market_fair_probability"])
-        self.assertEqual(home["classification"], "PRICE_COMPARISON_ONLY")
+        self.assertEqual(home["market_fair_probability"], "")
+        self.assertEqual(home["classification"], "INSUFFICIENT_MARKET_DATA")
         self.assertEqual(home["expected_value_pct"], "")
 
     def test_market_without_complete_outcomes_is_not_valued(self):
@@ -69,10 +69,25 @@ class ScannerTests(unittest.TestCase):
             copy["captured_at"] = "2026-11-18T10:00:00+01:00"
             copy["odds"] = 1.5
             older.append(copy)
-        result = scan(older + self.rows)
+        second_book = []
+        for row in self.rows:
+            copy = dict(row)
+            copy["bookmaker"] = "Y"
+            copy["odds"] = row["odds"] * 1.02
+            second_book.append(copy)
+        result = scan(older + self.rows + second_book)
         home = next(r for r in result if r["selection"] == "Home")
         expected = (1 / 2.1) / ((1 / 2.1) + (1 / 3.2) + (1 / 3.5))
         self.assertAlmostEqual(home["market_fair_probability"], round(expected, 6))
+        self.assertEqual(home["complete_bookmakers"], 2)
+
+    def test_duplicate_selection_rows_are_collapsed(self):
+        duplicate = dict(self.rows[0])
+        duplicate["odds"] = 2.2
+        result = scan(self.rows + [duplicate])
+        home = next(r for r in result if r["selection"] == "Home")
+        self.assertEqual(home["best_odds"], 2.2)
+        self.assertEqual(len(result), 3)
 
 
 if __name__ == "__main__":
