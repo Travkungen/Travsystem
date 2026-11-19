@@ -50,6 +50,30 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(result[0]["classification"], "INSUFFICIENT_MARKET_DATA")
         self.assertEqual(result[0]["market_fair_probability"], "")
 
+    def test_stale_high_price_cannot_win_best_price(self):
+        old = []
+        for row in self.rows:
+            copy = dict(row)
+            copy["captured_at"] = "2026-11-18T10:00:00+01:00"
+            copy["odds"] = 9.0 if copy["selection"] == "Home" else copy["odds"]
+            old.append(copy)
+        result = scan(old + self.rows)
+        home = next(r for r in result if r["selection"] == "Home")
+        self.assertEqual(home["best_odds"], 2.1)
+        self.assertEqual(home["captured_at"], "2026-11-19T10:00:00+01:00")
+
+    def test_latest_snapshot_is_used_for_market_consensus(self):
+        older = []
+        for row in self.rows:
+            copy = dict(row)
+            copy["captured_at"] = "2026-11-18T10:00:00+01:00"
+            copy["odds"] = 1.5
+            older.append(copy)
+        result = scan(older + self.rows)
+        home = next(r for r in result if r["selection"] == "Home")
+        expected = (1 / 2.1) / ((1 / 2.1) + (1 / 3.2) + (1 / 3.5))
+        self.assertAlmostEqual(home["market_fair_probability"], round(expected, 6))
+
 
 if __name__ == "__main__":
     unittest.main()
