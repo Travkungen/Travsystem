@@ -53,7 +53,7 @@ The Odds API documents soccer player props for selected major leagues with cover
 - https://the-odds-api.com/liveapi/guides/v4/
 - https://the-odds-api.com/sports-odds-data/betting-markets.html
 
-## CSV format
+## Offline demo data\n\n`data/odds_sample.csv` contains fictional demo fixtures and illustrative prices for software testing only. These are not real matches, bookmaker quotes, betting tips or evidence of value. The demo covers 1X2, goals, corners and cards so the scanner can be exercised without API credentials.\n\n## CSV format
 
 Required columns:
 
