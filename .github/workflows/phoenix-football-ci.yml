@@ -27,5 +27,9 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run sample scan
         run: python -m phoenix_football.scanner scan --input data/odds_sample.csv --output reports/ci_scan.csv
-      - name: Verify report
-        run: test -s reports/ci_scan.csv
+      - name: Build market coverage report
+        run: python -m phoenix_football.coverage --input data/odds_sample.csv --output reports/ci_coverage.csv
+      - name: Verify reports
+        run: |
+          test -s reports/ci_scan.csv
+          test -s reports/ci_coverage.csv
