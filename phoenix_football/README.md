@@ -10,6 +10,7 @@ A separate football project inside Travsystem. It does not import, modify, or de
 - Optional discovery and retrieval of additional event markets, when the provider/bookmaker exposes them.
 - CSV normalization, best-price comparison and no-vig market consensus.
 - Timestamped raw JSON snapshots and daily CSV reports.
+- Market coverage by league, market and bookmaker, including data age and upcoming-event row counts.
 - No automatic bet placement and no fabricated model probabilities.
 
 ## Quick start
@@ -34,6 +35,14 @@ Discover and fetch additional event markets (may consume extra API quota):
 ```bash
 python -m phoenix_football.scanner fetch --include-extra-markets
 ```
+
+Create a market coverage report from an imported or fetched CSV:
+
+```bash
+python -m phoenix_football.coverage --input reports/daily_odds.csv --output reports/market_coverage.csv
+```
+
+The coverage report lists only observed league/market/bookmaker combinations. It flags snapshots older than six hours by default; change this with `--stale-after-hours`.
 
 Run the scanner on an imported CSV:
 
