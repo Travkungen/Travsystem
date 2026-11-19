@@ -50,7 +50,7 @@ def read_odds(path: str | Path) -> list[dict[str, Any]]:
 
 
 def _latest_bookmaker_snapshots(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep only the latest complete snapshot for each bookmaker and market."""
+    """Keep the latest snapshot and collapse duplicate selection rows."""
     snapshots: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         key = (row["event_id"], row["market"], row["line"], row["bookmaker"])
@@ -59,15 +59,19 @@ def _latest_bookmaker_snapshots(rows: list[dict[str, Any]]) -> list[dict[str, An
     latest_rows: list[dict[str, Any]] = []
     for snapshot_rows in snapshots.values():
         latest_time = max(_timestamp(row["captured_at"]) for row in snapshot_rows)
-        latest_rows.extend(
-            row for row in snapshot_rows
-            if _timestamp(row["captured_at"]) == latest_time
-        )
+        deduplicated: dict[str, dict[str, Any]] = {}
+        for row in snapshot_rows:
+            if _timestamp(row["captured_at"]) != latest_time:
+                continue
+            previous = deduplicated.get(row["selection"])
+            # Duplicate provider rows are collapsed conservatively to one quote.
+            if previous is None or row["odds"] > previous["odds"]:
+                deduplicated[row["selection"]] = row
+        latest_rows.extend(deduplicated.values())
     return latest_rows
 
 
 def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # Historical snapshots are excluded: old prices must never win the best-price ranking.
     current_rows = _latest_bookmaker_snapshots(rows)
 
     groups: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
@@ -76,7 +80,8 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         groups[key].append(row)
 
     fair_by_selection: dict[tuple, list[float]] = defaultdict(list)
-    for outcomes in groups.values():
+    books_by_market: dict[tuple, set[str]] = defaultdict(set)
+    for market_key, outcomes in groups.items():
         selections = [r["selection"] for r in outcomes]
         if len(selections) < 2 or len(set(selections)) != len(selections):
             continue
@@ -85,8 +90,9 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if total <= 0:
             continue
         for row, probability in zip(outcomes, implied):
-            fair_key = (row["event_id"], row["market"], row["line"], row["selection"])
+            fair_key = (*market_key[:3], row["selection"])
             fair_by_selection[fair_key].append(probability / total)
+            books_by_market[market_key[:3]].add(row["bookmaker"])
 
     best: dict[tuple, dict[str, Any]] = {}
     for row in current_rows:
@@ -103,13 +109,19 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     output = []
     for key, item in best.items():
+        market_key = key[:3]
         probabilities = fair_by_selection.get(key, [])
-        fair_probability = sum(probabilities) / len(probabilities) if probabilities else None
+        bookmaker_count = len(books_by_market.get(market_key, set()))
+        fair_probability = (
+            sum(probabilities) / len(probabilities)
+            if probabilities and bookmaker_count >= 2 else None
+        )
         fair_odds = 1.0 / fair_probability if fair_probability else None
         price_edge = ((item["best_odds"] / fair_odds) - 1.0) * 100 if fair_odds else None
         item.update({
+            "complete_bookmakers": bookmaker_count,
             "market_fair_probability": round(fair_probability, 6) if fair_probability is not None else "",
-            "market_fair_odds": round(fair_odds, 3) if fair_odds is not None else "",
+            "market_fair_odds": round(fair_odds, 3) if fair_odds else "",
             "price_edge_vs_consensus_pct": round(price_edge, 2) if price_edge is not None else "",
             "model_probability": "",
             "expected_value_pct": "",
