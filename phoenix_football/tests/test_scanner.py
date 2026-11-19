@@ -1,7 +1,10 @@
+import csv
+import tempfile
 import unittest
+from pathlib import Path
 
 from phoenix_football.odds_api import normalize_event
-from phoenix_football.scanner import scan
+from phoenix_football.scanner import read_odds, scan
 
 
 class OddsAdapterTests(unittest.TestCase):
@@ -88,6 +91,39 @@ class ScannerTests(unittest.TestCase):
         home = next(r for r in result if r["selection"] == "Home")
         self.assertEqual(home["best_odds"], 2.2)
         self.assertEqual(len(result), 3)
+
+
+    def _read_csv(self, changes=None):
+        fields = ["event_id", "sport", "league", "commence_time", "home_team", "away_team",
+                  "bookmaker", "market", "selection", "line", "odds", "captured_at"]
+        row = {
+            "event_id": "e1", "sport": "soccer", "league": "L",
+            "commence_time": "2026-11-20T18:00:00Z", "home_team": "A", "away_team": "B",
+            "bookmaker": "X", "market": "h2h", "selection": "Home", "line": "",
+            "odds": "2.1", "captured_at": "2026-11-19T10:00:00Z",
+        }
+        row.update(changes or {})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "odds.csv"
+            with path.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                writer.writerow(row)
+            return read_odds(path)
+
+    def test_rejects_non_finite_odds(self):
+        for value in ("nan", "inf", "-inf"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "ändligt tal"):
+                    self._read_csv({"odds": value})
+
+    def test_rejects_empty_selection(self):
+        with self.assertRaisesRegex(ValueError, "selection"):
+            self._read_csv({"selection": ""})
+
+    def test_rejects_invalid_kickoff_timestamp(self):
+        with self.assertRaisesRegex(ValueError, "tidsstämpel"):
+            self._read_csv({"commence_time": "not-a-date"})
 
 
 if __name__ == "__main__":
