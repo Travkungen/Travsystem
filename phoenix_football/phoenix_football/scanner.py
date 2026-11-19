@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 from typing import Any
+
+from phoenix_football.odds_api import FEATURED_MARKETS, TheOddsAPI, normalize_event
 
 REQUIRED = {
     "event_id", "sport", "league", "commence_time", "home_team", "away_team",
@@ -36,16 +40,14 @@ def read_odds(path: str | Path) -> list[dict[str, Any]]:
 
 
 def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # Each bookmaker's complete outcome set is normalized to remove overround.
+    # A bookmaker snapshot is grouped by event, market, line, bookmaker and timestamp.
     groups: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        key = (row["event_id"], row["market"], row["line"], row["bookmaker"])
+        key = (row["event_id"], row["market"], row["line"], row["bookmaker"], row["captured_at"])
         groups[key].append(row)
 
     fair_by_selection: dict[tuple, list[float]] = defaultdict(list)
-    overround_by_group: dict[tuple, float] = {}
     for key, outcomes in groups.items():
-        # Duplicate selections within a book/market/line are ambiguous; skip group.
         selections = [r["selection"] for r in outcomes]
         if len(selections) < 2 or len(set(selections)) != len(selections):
             continue
@@ -53,7 +55,6 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         total = sum(implied)
         if total <= 0:
             continue
-        overround_by_group[key] = total - 1.0
         for row, probability in zip(outcomes, implied):
             fair_key = (row["event_id"], row["market"], row["line"], row["selection"])
             fair_by_selection[fair_key].append(probability / total)
@@ -107,21 +108,84 @@ def write_report(rows: list[dict[str, Any]], output_path: str | Path) -> None:
         writer.writerows(rows)
 
 
+def fetch_daily(output_path: str, raw_path: str, include_extra_markets: bool = False) -> tuple[int, int, dict[str, str]]:
+    api = TheOddsAPI()
+    all_events: list[dict[str, Any]] = []
+    coverage: dict[str, int] = defaultdict(int)
+    now = datetime.now(timezone.utc)
+
+    sports = api.soccer_sports()
+    for sport in sports:
+        sport_key = sport["key"]
+        events = api.events_with_featured_odds(sport_key)
+        for event in events:
+            start = datetime.fromisoformat(event["commence_time"].replace("Z", "+00:00"))
+            if start <= now:
+                continue  # pre-match only; never mix in-play prices into the daily prematch report
+            all_events.append(event)
+            if include_extra_markets and event.get("id"):
+                market_map = api.event_market_keys(sport_key, event["id"])
+                extra = sorted({
+                    market for markets in market_map.values() for market in markets
+                    if market and market not in FEATURED_MARKETS
+                })
+                if extra:
+                    detail = api.event_odds(sport_key, event["id"], extra)
+                    if detail:
+                        # Keep only market keys discovered for this event.
+                        all_events.append(detail)
+            for bookmaker in event.get("bookmakers", []):
+                for market in bookmaker.get("markets", []):
+                    coverage[market.get("key", "unknown")] += 1
+
+    captured_at = datetime.now(timezone.utc).isoformat()
+    normalized: list[dict[str, Any]] = []
+    for event in all_events:
+        normalized.extend(normalize_event(event, captured_at))
+
+    raw_file = Path(raw_path)
+    raw_file.parent.mkdir(parents=True, exist_ok=True)
+    raw_file.write_text(json.dumps({
+        "captured_at": captured_at,
+        "sports": [s.get("key") for s in sports],
+        "events": all_events,
+        "api_usage": api.last_usage,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_report(normalized, output_path)
+    return len(all_events), len(normalized), dict(coverage)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phoenix Football multi-market odds scanner")
     sub = parser.add_subparsers(dest="command", required=True)
+
     command = sub.add_parser("scan", help="Scan an odds CSV and rank best prices")
     command.add_argument("--input", required=True)
     command.add_argument("--output", required=True)
-    args = parser.parse_args()
 
-    rows = read_odds(args.input)
-    report = scan(rows)
-    write_report(report, args.output)
-    print(f"PHOENIX FOOTBALL SCAN COMPLETE")
-    print(f"Odds rows: {len(rows)} | selections: {len(report)}")
-    print(f"Report: {args.output}")
-    print("NOTE: price edge vs consensus is not proof of positive EV.")
+    fetch = sub.add_parser("fetch", help="Fetch current prematch soccer odds from The Odds API")
+    fetch.add_argument("--output", default="reports/daily_odds.csv")
+    fetch.add_argument("--raw", default="data/raw/latest_odds.json")
+    fetch.add_argument("--include-extra-markets", action="store_true",
+                       help="Discover and fetch non-featured markets per event; can use additional API quota")
+
+    args = parser.parse_args()
+    if args.command == "scan":
+        rows = read_odds(args.input)
+        report = scan(rows)
+        write_report(report, args.output)
+        print("PHOENIX FOOTBALL SCAN COMPLETE")
+        print(f"Odds rows: {len(rows)} | selections: {len(report)}")
+        print(f"Report: {args.output}")
+        print("NOTE: price edge vs consensus is not proof of positive EV.")
+    else:
+        event_count, row_count, coverage = fetch_daily(args.output, args.raw, args.include_extra_markets)
+        print("PHOENIX FOOTBALL DAILY FETCH COMPLETE")
+        print(f"Events fetched: {event_count} | odds rows: {row_count}")
+        print(f"Markets found: {', '.join(sorted(coverage)) if coverage else 'none'}")
+        print(f"Raw snapshot: {args.raw}")
+        print(f"Daily odds: {args.output}")
+        print("Extra markets enabled:", args.include_extra_markets)
 
 
 if __name__ == "__main__":
