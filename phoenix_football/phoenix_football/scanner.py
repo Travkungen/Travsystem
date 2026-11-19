@@ -6,7 +6,6 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from statistics import mean
 from typing import Any
 
 from phoenix_football.odds_api import FEATURED_MARKETS, TheOddsAPI, normalize_event
@@ -15,6 +14,16 @@ REQUIRED = {
     "event_id", "sport", "league", "commence_time", "home_team", "away_team",
     "bookmaker", "market", "selection", "line", "odds", "captured_at",
 }
+
+
+def _timestamp(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise ValueError(f"Ogiltig tidsstämpel: {value!r}") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def read_odds(path: str | Path) -> list[dict[str, Any]]:
@@ -35,19 +44,39 @@ def read_odds(path: str | Path) -> list[dict[str, Any]]:
             row["line"] = (row.get("line") or "").strip()
             for key in REQUIRED - {"odds"}:
                 row[key] = (row.get(key) or "").strip()
+            _timestamp(row["captured_at"])
             rows.append(row)
     return rows
 
 
-def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # A bookmaker snapshot is grouped by event, market, line, bookmaker and timestamp.
-    groups: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
+def _latest_bookmaker_snapshots(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only the latest complete snapshot for each bookmaker and market."""
+    snapshots: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        key = (row["event_id"], row["market"], row["line"], row["bookmaker"], row["captured_at"])
+        key = (row["event_id"], row["market"], row["line"], row["bookmaker"])
+        snapshots[key].append(row)
+
+    latest_rows: list[dict[str, Any]] = []
+    for snapshot_rows in snapshots.values():
+        latest_time = max(_timestamp(row["captured_at"]) for row in snapshot_rows)
+        latest_rows.extend(
+            row for row in snapshot_rows
+            if _timestamp(row["captured_at"]) == latest_time
+        )
+    return latest_rows
+
+
+def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Historical snapshots are excluded: old prices must never win the best-price ranking.
+    current_rows = _latest_bookmaker_snapshots(rows)
+
+    groups: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
+    for row in current_rows:
+        key = (row["event_id"], row["market"], row["line"], row["bookmaker"])
         groups[key].append(row)
 
     fair_by_selection: dict[tuple, list[float]] = defaultdict(list)
-    for key, outcomes in groups.items():
+    for outcomes in groups.values():
         selections = [r["selection"] for r in outcomes]
         if len(selections) < 2 or len(set(selections)) != len(selections):
             continue
@@ -60,7 +89,7 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             fair_by_selection[fair_key].append(probability / total)
 
     best: dict[tuple, dict[str, Any]] = {}
-    for row in rows:
+    for row in current_rows:
         key = (row["event_id"], row["market"], row["line"], row["selection"])
         if key not in best or row["odds"] > best[key]["best_odds"]:
             best[key] = {
@@ -75,7 +104,7 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     output = []
     for key, item in best.items():
         probabilities = fair_by_selection.get(key, [])
-        fair_probability = mean(probabilities) if probabilities else None
+        fair_probability = sum(probabilities) / len(probabilities) if probabilities else None
         fair_odds = 1.0 / fair_probability if fair_probability else None
         price_edge = ((item["best_odds"] / fair_odds) - 1.0) * 100 if fair_odds else None
         item.update({
@@ -110,8 +139,7 @@ def write_report(rows: list[dict[str, Any]], output_path: str | Path) -> None:
 
 def fetch_daily(output_path: str, raw_path: str, include_extra_markets: bool = False) -> tuple[int, int, dict[str, str]]:
     api = TheOddsAPI()
-    all_events: list[dict[str, Any]] = []
-    coverage: dict[str, int] = defaultdict(int)
+    events_by_id: dict[str, dict[str, Any]] = {}
     now = datetime.now(timezone.utc)
 
     sports = api.soccer_sports()
@@ -119,40 +147,57 @@ def fetch_daily(output_path: str, raw_path: str, include_extra_markets: bool = F
         sport_key = sport["key"]
         events = api.events_with_featured_odds(sport_key)
         for event in events:
-            start = datetime.fromisoformat(event["commence_time"].replace("Z", "+00:00"))
+            start = _timestamp(event["commence_time"])
             if start <= now:
                 continue  # pre-match only; never mix in-play prices into the daily prematch report
-            all_events.append(event)
-            if include_extra_markets and event.get("id"):
-                market_map = api.event_market_keys(sport_key, event["id"])
+
+            event_id = str(event.get("id", ""))
+            combined = events_by_id.setdefault(event_id, dict(event))
+            if include_extra_markets and event_id:
+                market_map = api.event_market_keys(sport_key, event_id)
                 extra = sorted({
                     market for markets in market_map.values() for market in markets
                     if market and market not in FEATURED_MARKETS
                 })
                 if extra:
-                    detail = api.event_odds(sport_key, event["id"], extra)
+                    detail = api.event_odds(sport_key, event_id, extra)
                     if detail:
-                        # Keep only market keys discovered for this event.
-                        all_events.append(detail)
-            for bookmaker in event.get("bookmakers", []):
-                for market in bookmaker.get("markets", []):
-                    coverage[market.get("key", "unknown")] += 1
+                        # Preserve fixture metadata even if the detail response omits it.
+                        combined.update({k: v for k, v in detail.items() if k != "bookmakers"})
+                        by_book = {
+                            b.get("key"): b for b in combined.get("bookmakers", [])
+                        }
+                        for bookmaker in detail.get("bookmakers", []):
+                            book_key = bookmaker.get("key")
+                            target = by_book.setdefault(book_key, dict(bookmaker))
+                            if target is not bookmaker:
+                                markets_by_key = {
+                                    m.get("key"): m for m in target.get("markets", [])
+                                }
+                                for market in bookmaker.get("markets", []):
+                                    markets_by_key[market.get("key")] = market
+                                target["markets"] = list(markets_by_key.values())
+                        combined["bookmakers"] = list(by_book.values())
 
     captured_at = datetime.now(timezone.utc).isoformat()
     normalized: list[dict[str, Any]] = []
-    for event in all_events:
+    for event in events_by_id.values():
         normalized.extend(normalize_event(event, captured_at))
+
+    coverage: dict[str, int] = defaultdict(int)
+    for row in normalized:
+        coverage[row["market"]] += 1
 
     raw_file = Path(raw_path)
     raw_file.parent.mkdir(parents=True, exist_ok=True)
     raw_file.write_text(json.dumps({
         "captured_at": captured_at,
         "sports": [s.get("key") for s in sports],
-        "events": all_events,
+        "events": list(events_by_id.values()),
         "api_usage": api.last_usage,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     write_report(normalized, output_path)
-    return len(all_events), len(normalized), dict(coverage)
+    return len(events_by_id), len(normalized), dict(coverage)
 
 
 def main() -> None:
