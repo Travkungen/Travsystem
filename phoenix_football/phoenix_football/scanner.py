@@ -82,12 +82,18 @@ def _is_complete_outcome_set(market: str, outcomes: list[dict[str, Any]]) -> boo
     selections = {str(row["selection"]).strip().casefold() for row in outcomes}
     if market == "h2h":
         first = outcomes[0]
-        expected = {
+        expected_team_names = {
             str(first["home_team"]).strip().casefold(),
             str(first["away_team"]).strip().casefold(),
             "draw",
         }
-        return len(expected) == 3 and selections == expected
+        # Provider fixtures may use actual team names; normalized CSVs and
+        # offline tests may use the canonical Home/Draw/Away labels.
+        expected_generic = {"home", "draw", "away"}
+        return (
+            (len(expected_team_names) == 3 and selections == expected_team_names)
+            or selections == expected_generic
+        )
     if market == "totals":
         return selections == {"over", "under"}
     if market == "spreads":
