@@ -1,7 +1,9 @@
+import unittest
+
 from phoenix_football.scanner import scan
 
 
-def _row(bookmaker, selection, odds):
+def make_row(bookmaker, selection, odds):
     return {
         "event_id": "match-1",
         "sport": "soccer_epl",
@@ -18,31 +20,31 @@ def _row(bookmaker, selection, odds):
     }
 
 
-def test_incomplete_1x2_without_draw_is_not_used_for_consensus():
-    rows = [
-        _row("Book A", "Arsenal", 2.0),
-        _row("Book A", "Chelsea", 4.0),
-    ]
+class MarketCompletenessTests(unittest.TestCase):
+    def test_incomplete_1x2_without_draw_is_not_used_for_consensus(self):
+        rows = [
+            make_row("Book A", "Arsenal", 2.0),
+            make_row("Book A", "Chelsea", 4.0),
+        ]
+        report = scan(rows)
+        self.assertTrue(report)
+        self.assertTrue(all(item["market_fair_probability"] == "" for item in report))
+        self.assertTrue(all(item["classification"] == "INSUFFICIENT_MARKET_DATA" for item in report))
 
-    report = scan(rows)
+    def test_complete_1x2_outcome_set_can_contribute_to_consensus(self):
+        rows = [
+            make_row("Book A", "Arsenal", 2.0),
+            make_row("Book A", "Draw", 3.5),
+            make_row("Book A", "Chelsea", 4.0),
+            make_row("Book B", "Arsenal", 2.1),
+            make_row("Book B", "Draw", 3.4),
+            make_row("Book B", "Chelsea", 3.9),
+        ]
+        report = scan(rows)
+        self.assertTrue(report)
+        self.assertTrue(all(item["market_fair_probability"] != "" for item in report))
+        self.assertTrue(all(item["complete_bookmakers"] == 2 for item in report))
 
-    assert report
-    assert all(item["market_fair_probability"] == "" for item in report)
-    assert all(item["classification"] == "INSUFFICIENT_MARKET_DATA" for item in report)
 
-
-def test_complete_1x2_outcome_set_can_contribute_to_consensus():
-    rows = [
-        _row("Book A", "Arsenal", 2.0),
-        _row("Book A", "Draw", 3.5),
-        _row("Book A", "Chelsea", 4.0),
-        _row("Book B", "Arsenal", 2.1),
-        _row("Book B", "Draw", 3.4),
-        _row("Book B", "Chelsea", 3.9),
-    ]
-
-    report = scan(rows)
-
-    assert report
-    assert all(item["market_fair_probability"] != "" for item in report)
-    assert all(item["complete_bookmakers"] == 2 for item in report)
+if __name__ == "__main__":
+    unittest.main()
