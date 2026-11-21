@@ -77,6 +77,26 @@ def _latest_bookmaker_snapshots(rows: list[dict[str, Any]]) -> list[dict[str, An
     return latest_rows
 
 
+def _is_complete_outcome_set(market: str, outcomes: list[dict[str, Any]]) -> bool:
+    """Only calculate market consensus when the bookmaker supplied every expected outcome."""
+    selections = {str(row["selection"]).strip().casefold() for row in outcomes}
+    if market == "h2h":
+        first = outcomes[0]
+        expected = {
+            str(first["home_team"]).strip().casefold(),
+            str(first["away_team"]).strip().casefold(),
+            "draw",
+        }
+        return len(expected) == 3 and selections == expected
+    if market == "totals":
+        return selections == {"over", "under"}
+    if market == "spreads":
+        # A spread is complete only when both sides of the same line are present.
+        return len(outcomes) == 2 and len(selections) == 2
+    # Unknown markets are not assumed complete: their outcome space varies by market.
+    return False
+
+
 def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     current_rows = _latest_bookmaker_snapshots(rows)
 
@@ -88,8 +108,7 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     fair_by_selection: dict[tuple, list[float]] = defaultdict(list)
     books_by_market: dict[tuple, set[str]] = defaultdict(set)
     for market_key, outcomes in groups.items():
-        selections = [r["selection"] for r in outcomes]
-        if len(selections) < 2 or len(set(selections)) != len(selections):
+        if not _is_complete_outcome_set(market_key[1], outcomes):
             continue
         implied = [1.0 / r["odds"] for r in outcomes]
         total = sum(implied)
