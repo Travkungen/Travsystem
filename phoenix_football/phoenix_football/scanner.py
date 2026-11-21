@@ -154,10 +154,28 @@ def scan(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         })
         output.append(item)
 
-    output.sort(
-        key=lambda r: r["price_edge_vs_consensus_pct"]
-        if isinstance(r["price_edge_vs_consensus_pct"], (int, float)) else -999,
+    safety_order = sorted(
+        (r for r in output if isinstance(r["market_fair_probability"], (int, float))),
+        key=lambda r: r["market_fair_probability"],
         reverse=True,
+    )
+    for rank, item in enumerate(safety_order, start=1):
+        item["safety_rank"] = rank
+    for item in output:
+        item.setdefault("safety_rank", "")
+
+    value_order = sorted(
+        (r for r in output if isinstance(r["price_edge_vs_consensus_pct"], (int, float))),
+        key=lambda r: r["price_edge_vs_consensus_pct"],
+        reverse=True,
+    )
+    for rank, item in enumerate(value_order, start=1):
+        item["value_rank"] = rank
+    for item in output:
+        item.setdefault("value_rank", "")
+
+    output.sort(
+        key=lambda r: r["value_rank"] if isinstance(r["value_rank"], int) else 10**9
     )
     return output
 
