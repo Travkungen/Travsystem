@@ -5,7 +5,7 @@ A separate football project inside Travsystem. It does not import, modify, or de
 ## Current capabilities
 
 - The Odds API v4 adapter for active soccer leagues.
-- Pre-match odds fetch for all active soccer sport keys returned by the provider.
+- Pre-match odds fetch for active priority competitions only: Premier League, La Liga, Bundesliga, Serie A, Ligue 1, UEFA Champions League, Europa League, Conference League, Eredivisie, Primeira Liga, Scottish Premiership and Allsvenskan.
 - Default featured markets: 1X2 (h2h) and totals.
 - Optional discovery and retrieval of additional event markets, when the provider/bookmaker exposes them.
 - CSV normalization, best-price comparison and no-vig market consensus.
@@ -24,7 +24,7 @@ export ODDS_API_KEY="your-key"
 cd phoenix_football
 ```
 
-Fetch prematch odds for active soccer leagues:
+Fetch prematch odds for active priority leagues (inactive/off-season competitions are skipped):
 
 ```bash
 python -m phoenix_football.scanner fetch
