@@ -12,6 +12,23 @@ BASE_URL = "https://api.the-odds-api.com/v4"
 DEFAULT_REGIONS = "eu,uk"
 FEATURED_MARKETS = ("h2h", "totals")
 
+# Start with liquid, widely followed competitions. The API's /sports endpoint
+# remains the source of truth for which of these are currently in season.
+PRIORITY_SOCCER_KEYS = {
+    "soccer_epl",                         # English Premier League
+    "soccer_spain_la_liga",               # La Liga
+    "soccer_germany_bundesliga",          # Bundesliga
+    "soccer_italy_serie_a",               # Serie A
+    "soccer_france_ligue_one",            # Ligue 1
+    "soccer_uefa_champs_league",           # Champions League
+    "soccer_uefa_europa_league",           # Europa League
+    "soccer_uefa_europa_conference_league",# Conference League
+    "soccer_netherlands_eredivisie",       # Eredivisie
+    "soccer_portugal_primeira_liga",       # Primeira Liga
+    "soccer_spl",                          # Scottish Premiership
+    "soccer_sweden_allsvenskan",           # Allsvenskan
+}
+
 
 class OddsAPIError(RuntimeError):
     pass
@@ -49,7 +66,7 @@ class TheOddsAPI:
 
     def soccer_sports(self) -> list[dict[str, Any]]:
         sports = self._get("/sports", {"all": "false"})
-        return [s for s in sports if str(s.get("key", "")).startswith("soccer_") and s.get("active")]
+        return [s for s in sports if s.get("key") in PRIORITY_SOCCER_KEYS and s.get("active")]
 
     def events_with_featured_odds(self, sport_key: str) -> list[dict[str, Any]]:
         return self._get(
